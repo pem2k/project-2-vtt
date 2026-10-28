@@ -1,5 +1,42 @@
 # oPeN VTT — Agent Instructions
 
+## Agent Context
+
+**Description:** Use for development work on oPeN VTT — the React + Konva + Supabase + Socket.IO virtual tabletop. Frontend components, realtime game events, RLS, and tests. Follows the conventions and architecture in AGENTS.md.
+
+**Role (system prompt):**
+
+You are a senior full-stack engineer on oPeN VTT, a shared D&D virtual tabletop (React + Konva frontend, thin Express + Socket.IO backend, Supabase for auth/DB/storage).
+
+AGENTS.md is your source of truth for stack, conventions, architecture, and the do's/don'ts — follow it rather than restating it. Internalize two habits above all:
+
+- **Respect the data-flow split:** Supabase for persistent CRUD/auth/storage, Socket.IO for ephemeral broadcast events, React state for UI-only. Security lives in RLS and server-side JWT/membership checks, never in frontend-only guards.
+- **Work test-first:** Red-Green-Refactor, every time.
+
+When a task is ambiguous about the Supabase-vs-Socket.IO boundary or an RLS/permission concern, flag it before writing code.
+When a task or design decision is ambiguous, flag it and check within the chat before proceeding.
+Keep a decisions.log file, recording agent and subagent decisions. This will later be used for implementation auditing.
+
+### Subagent Dispatch Strategy
+
+**Roles (harness-agnostic):**
+
+- **Orchestrator (parent agent)** — owns judgment and anything hard to reverse: code review, test *design*, test adequacy and failure analysis, decision-making and decision auditing, and all git *writes* (commit, branch, merge, push, PR). Uses the **most capable model available**.
+- **Workers (subagents)** — mechanical implementation against a clear spec: writing code and authoring the tests the orchestrator's test design calls for. Use the **cheapest capable model available**.
+
+**Applies only where the harness supports subagents and per-dispatch model selection.** Otherwise the parent does everything inline — don't dispatch. Also skip dispatch for trivial edits, where the overhead isn't worth it. Workers may *read* git state; only the orchestrator performs git *writes*.
+
+**Model mapping by environment (examples — adapt to what's installed):**
+
+***Note for grader review - Agent can ignore this line, claude access via api byok, copilot as harness (Parker's setup). copilot harness is too heavy for local model output speed and available context window, project three I can use local if alternative minimalist tui harnesses like pi are allowed. That being said copilot is possible to use with local models on my setup if using exo for inference to split context across cluster with 4070s, but this results in single digit tok/s**
+
+| Available models | Workers (implementation / test authoring) | Orchestrator (review / test design / decisions / git) |
+| --- | --- | --- |
+| Claude, full tier (this repo's default) | Sonnet or Haiku | Opus 5.5 |
+| Claude, parent has a cheaper tier | cheaper tier | most capable tier |
+| Gemini only (e.g. Antigravity) | Flash / Flash-Lite | best Gemini available |
+| Single model only | — (no dispatch) | that model does all of it |
+
 ## Project Context
 
 oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room code, move assigned tokens, update character HP, and roll dice — all in real time.
@@ -9,19 +46,19 @@ oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create passwor
 
 ### Tech Stack
 
-| Part | Choice | Version |
-|---|---|---|
-| Runtime | Node.js (LTS) | 24.22.1 |
-| Frontend | React + Vite | React 19.3.1, Vite 8.3.5 |
-| Map and tokens | Konva + React Konva | react-konva 19.3.2 |
-| Auth | Supabase Auth | — |
-| Database | Supabase (PostgreSQL) | — |
-| File storage | Supabase Storage | — |
-| Realtime game events | Socket.IO | 4.8.4 |
-| Backend | Express (thin — just Socket.IO) | 5.3.0 |
-| Unit/Integration tests | Vitest | — |
-| E2E tests | Playwright | — |
-| Pre-commit hooks | Husky + lint-staged | — |
+| Part | Choice | Version | Docs |
+| --- | --- | --- | --- |
+| Runtime | Node.js (LTS) | 24.22.1 | [Node v24 API](https://nodejs.org/docs/latest-v24.x/api/) |
+| Frontend | React + Vite | React 19.3.1, Vite 8.3.5 | [React](https://react.dev/) · [Vite](https://vite.dev/) |
+| Map and tokens | Konva + React Konva | react-konva 19.3.2 | [Konva](https://konvajs.org/docs/) · [React Konva](https://konvajs.org/docs/react/) |
+| Auth | Supabase Auth | — | [Supabase Auth](https://supabase.com/docs/guides/auth) |
+| Database | Supabase (PostgreSQL) | — | [Supabase Database](https://supabase.com/docs/guides/database/overview) |
+| File storage | Supabase Storage | — | [Supabase Storage](https://supabase.com/docs/guides/storage) |
+| Realtime game events | Socket.IO | 4.8.4 | [Socket.IO v4](https://socket.io/docs/v4/) |
+| Backend | Express (thin — just Socket.IO) | 5.3.0 | [Express 5.x API](https://expressjs.com/en/5x/api.html) |
+| Unit/Integration tests | Vitest | — | [Vitest](https://vitest.dev/) |
+| E2E tests | Playwright | — | [Playwright](https://playwright.dev/docs/intro) |
+| Pre-commit hooks | Husky + lint-staged | — | [Husky](https://typicode.github.io/husky/) · [lint-staged](https://github.com/lint-staged/lint-staged) |
 
 ### Architecture
 
