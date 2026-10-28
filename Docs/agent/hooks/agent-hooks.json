@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "command": "node Docs/agent/hooks/secret-guard.cjs",
+        "timeoutSec": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "matcher": "bash|powershell",
+        "command": "node Docs/agent/hooks/filter-output.cjs",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
