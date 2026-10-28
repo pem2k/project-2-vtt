@@ -11,3 +11,4 @@
 [2026-10-28] [orchestrator] [#1] Did not install Konva, Supabase, or Socket.IO — out of scope for scaffolding; added per feature issue.
 [2026-10-28] [orchestrator] [#1] Added frontend/.nvmrc = 24.22.1 per stack table (local machine currently on Node 22.22.3; build works on both).
 [2026-10-28] [orchestrator] [#1] No subagent dispatch — scaffold is small/mechanical; overhead not worth it per dispatch strategy.
+[2026-10-28] [orchestrator] [#1] Opened PR #20 against default branch `project-2-vtt` (AGENTS.md says `main`, but no `main` branch exists on the remote) — flagged to user.
