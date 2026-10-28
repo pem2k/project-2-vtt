@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Local Vector DB
+.context_vectors.db
+__pycache__/
+*.pyc
+
+# Homework test directories
+frontend-hw-3/
+
+# IDE
+.idea/
+
