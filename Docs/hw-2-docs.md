@@ -10,7 +10,7 @@ oPeN VTT addresses this problem by bringing these activities into one shared vir
 
 - Create an account, log in, and log out.
 - DM creates a password-protected room; players join using a room code and password.
-- Upload and display one map per room with a square grid.
+- Upload and display maps with a square grid.
 - DM adds, names, assigns, moves, and removes colored tokens.
 - Players move only assigned tokens; the DM controls all tokens.
 - Name, current/max HP, armor class, and notes. Players edit their own HP and notes.
@@ -25,6 +25,7 @@ oPeN VTT addresses this problem by bringing these activities into one shared vir
 - Adjustable grid and token snapping to that grid
 - Dice modifiers - e.g. manual rolls 2d+6, should also come from char sheet.
 - Scrollable roll history for the current session
+- Multiple maps per room — DM uploads and switches between maps via DM Controls.
 
 ## Could Have
 
@@ -41,7 +42,6 @@ oPeN VTT addresses this problem by bringing these activities into one shared vir
 - Full character sheets, custom items, and automated game rules.
 - Distance measurement and area-of-effect drawing tools.
 - Dynamic lighting and fog of war.
-- Multiple maps per room. 
 - D&D Beyond importing, might require creation of a browser extensions
 
 ---
@@ -54,7 +54,9 @@ oPeN VTT addresses this problem by bringing these activities into one shared vir
 4. As a player, I want to move my assigned token and see everyone else's moves in real time so that combat feels live and collaborative.
 5. As a player, I want to view my character card, update my HP, and roll dice with results visible to everyone so that I can play my turn without leaving the table.
 
-### Agents.md
+### Mockups
+![General Flow Mockup](./general_mockup.png)
+![Dm Control Mockup]( ./dm_control_mockup.png)
 
 ## Naming Conventions
 

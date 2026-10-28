@@ -27,7 +27,7 @@ All changes — token positions, character updates, dice results — are broadca
 
 - Create an account, log in, and log out.
 - DM creates a password-protected room; players join using a room code and password.
-- Upload and display one map per room with a square grid.
+- Upload and display maps with a square grid.
 - DM adds, names, assigns, moves, and removes colored tokens.
 - Players move only assigned tokens; the DM controls all tokens.
 - Name, current/max HP, armor class, and notes. Players edit their own HP and notes.
@@ -42,6 +42,7 @@ All changes — token positions, character updates, dice results — are broadca
 - Adjustable grid and token snapping to that grid.
 - Dice modifiers — e.g. manual rolls 2d6+6, should also come from char sheet.
 - Scrollable roll history for the current session.
+- Multiple maps per room — DM uploads and switches between maps via DM Controls.
 
 ### Could Have
 
@@ -58,7 +59,6 @@ All changes — token positions, character updates, dice results — are broadca
 - Full character sheets, custom items, and automated game rules.
 - Distance measurement and area-of-effect drawing tools.
 - Dynamic lighting and fog of war.
-- Multiple maps per room.
 - D&D Beyond importing.
 
 ## User Stories
