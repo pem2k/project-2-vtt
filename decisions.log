@@ -1,0 +1,13 @@
+# oPeN VTT — Decisions Log
+# Format: [date] [agent] [issue] decision — rationale
+
+[2026-10-28] [orchestrator] [#1] Scaffolded frontend/ with `npm create vite@latest . -- --template react` (JS, not TS) — matches docs/folder structure (.jsx files).
+[2026-10-28] [orchestrator] [#1] Replaced template's default oxlint with ESLint (flat config: @eslint/js, react-hooks, react-refresh/vite, eslint-config-prettier last) — issue #1 and AGENTS.md require ESLint + Prettier; current create-vite ships oxlint.
+[2026-10-28] [orchestrator] [#1] Prettier config: singleQuote, semi, trailingComma all, printWidth 100 — common React defaults; no project preference specified.
+[2026-10-28] [orchestrator] [#1] No Husky/lint-staged — user decision; ESLint/Prettier run via npm scripts (and later CI).
+[2026-10-28] [orchestrator] [#1] Installed Vitest with `test` script using --passWithNoTests; no tests or test env (jsdom/RTL) yet — user decision ("add vitest, don't need to do anything with it yet").
+[2026-10-28] [orchestrator] [#1] Created empty src/{pages,components,components/board,hooks,lib}/ with .gitkeep only, no stub components — user decision; stubs belong to their feature issues.
+[2026-10-28] [orchestrator] [#1] Removed template demo assets (App.css, assets/, icons.svg); renamed index.css -> styles.css per planned structure; applied design.md palette + Vollkorn and a global :focus-visible outline (a11y rule).
+[2026-10-28] [orchestrator] [#1] Did not install Konva, Supabase, or Socket.IO — out of scope for scaffolding; added per feature issue.
+[2026-10-28] [orchestrator] [#1] Added frontend/.nvmrc = 24.22.1 per stack table (local machine currently on Node 22.22.3; build works on both).
+[2026-10-28] [orchestrator] [#1] No subagent dispatch — scaffold is small/mechanical; overhead not worth it per dispatch strategy.
