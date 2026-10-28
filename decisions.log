@@ -17,3 +17,4 @@
 [2026-10-28] [orchestrator] [repo] Ruleset "Protect dev" (id 26063591): PR required, 0 approvals, block deletion + force-push; admin bypass — user chose "light".
 [2026-10-28] [orchestrator] [repo] Used repository rulesets (not classic branch protection) — supports role-based bypass on a public repo; no status checks required yet since CI doesn't exist (add when ci.yml lands).
 [2026-10-28] [orchestrator] [repo] Default branch set to `dev`; PR #20 retargeted main -> dev; AGENTS.md PR workflow updated; deleted stale local `project-2-vtt` branch (no longer on remote).
+[2026-10-28] [owner] [repo] AGENTS.md model policy changed by owner: orchestrator defaults to Sonnet (Opus only for complex architecture/multi-step reasoning, never Fable/Astra); workers Sonnet or Haiku. Committed as-is by orchestrator.

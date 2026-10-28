@@ -19,10 +19,12 @@ Keep a decisions.log file, recording agent and subagent decisions. This will lat
 
 ### Subagent Dispatch Strategy
 
+**Default to Sonnet.** Sonnet handles most coding tasks on this repo well and costs far less than Opus. Reserve Opus for genuinely complex architectural decisions or multi-step reasoning, then drop back to Sonnet. Do **not** use the top-end frontier models (e.g. Fable, Astra); a strong reasoning model is the ceiling, not the most powerful model available. Switch models mid-session with `/model`, or set a default in `/config`. For simple tasks, also lower `/effort` — thinking tokens bill as output tokens.
+
 **Roles (harness-agnostic):**
 
-- **Orchestrator (parent agent)** — owns judgment and anything hard to reverse: code review, test *design*, test adequacy and failure analysis, decision-making and decision auditing, and all git *writes* (commit, branch, merge, push, PR). Uses a **capable thinking (reasoning) model — Opus 5.5 by default**. Do **not** escalate to the top-end frontier models (e.g. Fable, Astra); a strong reasoning model is the target, not the most powerful model available.
-- **Workers (subagents)** — mechanical implementation against a clear spec: writing code and authoring the tests the orchestrator's test design calls for. Use the **cheapest capable model available**.
+- **Orchestrator (parent agent)** — owns judgment and anything hard to reverse: code review, test *design*, test adequacy and failure analysis, decision-making and decision auditing, and all git *writes* (commit, branch, merge, push, PR). Runs on **Sonnet by default**; escalate to **Opus only for complex architectural decisions or multi-step reasoning**, then return to Sonnet. Most sessions on this repo (scaffolding, repo/CI config, component and CRUD/RLS boilerplate, routine review) are mechanical and should stay on Sonnet.
+- **Workers (subagents)** — mechanical implementation against a clear spec: writing code and authoring the tests the orchestrator's test design calls for. Use the **cheapest capable model available** (Sonnet or Haiku).
 
 **Applies only where the harness supports subagents and per-dispatch model selection.** Otherwise the parent does everything inline — don't dispatch. Also skip dispatch for trivial edits, where the overhead isn't worth it. Workers may *read* git state; only the orchestrator performs git *writes*.
 
@@ -32,9 +34,9 @@ Keep a decisions.log file, recording agent and subagent decisions. This will lat
 
 | Available models | Workers (implementation / test authoring) | Orchestrator (review / test design / decisions / git) |
 | --- | --- | --- |
-| Claude, full tier (this repo's default) | Sonnet or Haiku | Opus 5.5 (not Fable / Astra) |
-| Claude, parent has a cheaper tier | cheaper tier | capable reasoning tier (e.g. Opus) |
-| Gemini only (e.g. Antigravity) | Flash / Flash-Lite | a Gemini reasoning model (e.g. Pro) |
+| Claude, full tier (this repo's default) | Sonnet or Haiku | Sonnet by default; Opus only for complex architecture / multi-step reasoning (never Fable / Astra) |
+| Claude, parent has a cheaper tier | cheaper tier | mid tier by default; capable reasoning tier (e.g. Opus) only when the task demands it |
+| Gemini only (e.g. Antigravity) | Flash / Flash-Lite | Flash by default; a Gemini reasoning model (e.g. Pro) only when the task demands it |
 | Single model only | — (no dispatch) | that model does all of it |
 
 ## Project Context
