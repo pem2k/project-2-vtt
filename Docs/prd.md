@@ -92,4 +92,16 @@ The app will not include game listings, template libraries, full character sheet
 
 ## Mockups
 
-TODO — add Figma link or artifact screenshots
+### General Flow
+![General Flow Mockup](./general_mockup.png)
+
+Pages: Landing (login) → Join a Game (Host/Join) → Room Login (code + password or room name + password) → Board (Player or DM view). Player board has a clickable character card on the left, Konva board center, dice roller bottom, and public roll history right. DM board replaces the character card with DM Controls.
+
+### DM Controls
+![DM Controls Mockup](./dm_control_mockup.png)
+
+Four panel states within DMControls:
+1. **Selected token stats** — click a token on the board to load its stats (HP, AC) and full character sheet into the panel. DM can edit all fields.
+2. **Map manager** — scrollable list of saved maps with an "Upload New Map" button. Click a map to set it as active.
+3. **Enemy token management** — Add Enemy Token, Remove selected token, Bulk Add (CSV, could-have).
+4. **Enemy token character sheet** — fillable stats grid for enemy tokens.

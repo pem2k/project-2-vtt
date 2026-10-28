@@ -5,7 +5,7 @@
 oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room code, move assigned tokens, update character HP, and roll dice — all in real time.
 
 - **PRD**: [Docs/prd.md](Docs/prd.md)
-- **Mockups**: TODO — add link to Figma or artifact screenshots
+- **Mockups**: [General Flow](Docs/general_mockup.png) | [DM Controls](Docs/dm_control_mockup.png)
 
 ### Tech Stack
 
