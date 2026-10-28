@@ -21,7 +21,7 @@ Keep a decisions.log file, recording agent and subagent decisions. This will lat
 
 **Roles (harness-agnostic):**
 
-- **Orchestrator (parent agent)** — owns judgment and anything hard to reverse: code review, test *design*, test adequacy and failure analysis, decision-making and decision auditing, and all git *writes* (commit, branch, merge, push, PR). Uses the **most capable model available**.
+- **Orchestrator (parent agent)** — owns judgment and anything hard to reverse: code review, test *design*, test adequacy and failure analysis, decision-making and decision auditing, and all git *writes* (commit, branch, merge, push, PR). Uses a **capable thinking (reasoning) model — Opus 5.5 by default**. Do **not** escalate to the top-end frontier models (e.g. Fable, Astra); a strong reasoning model is the target, not the most powerful model available.
 - **Workers (subagents)** — mechanical implementation against a clear spec: writing code and authoring the tests the orchestrator's test design calls for. Use the **cheapest capable model available**.
 
 **Applies only where the harness supports subagents and per-dispatch model selection.** Otherwise the parent does everything inline — don't dispatch. Also skip dispatch for trivial edits, where the overhead isn't worth it. Workers may *read* git state; only the orchestrator performs git *writes*.
@@ -32,9 +32,9 @@ Keep a decisions.log file, recording agent and subagent decisions. This will lat
 
 | Available models | Workers (implementation / test authoring) | Orchestrator (review / test design / decisions / git) |
 | --- | --- | --- |
-| Claude, full tier (this repo's default) | Sonnet or Haiku | Opus 5.5 |
-| Claude, parent has a cheaper tier | cheaper tier | most capable tier |
-| Gemini only (e.g. Antigravity) | Flash / Flash-Lite | best Gemini available |
+| Claude, full tier (this repo's default) | Sonnet or Haiku | Opus 5.5 (not Fable / Astra) |
+| Claude, parent has a cheaper tier | cheaper tier | capable reasoning tier (e.g. Opus) |
+| Gemini only (e.g. Antigravity) | Flash / Flash-Lite | a Gemini reasoning model (e.g. Pro) |
 | Single model only | — (no dispatch) | that model does all of it |
 
 ## Project Context
@@ -42,6 +42,7 @@ Keep a decisions.log file, recording agent and subagent decisions. This will lat
 oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room code, move assigned tokens, update character HP, and roll dice — all in real time.
 
 - **PRD**: [Docs/prd.md](Docs/prd.md)
+- **Design**: [Docs/design.md](Docs/design.md) — color palette, typography, mockups, token colors
 - **Mockups**: [General Flow](Docs/general_mockup.png) | [DM Controls](Docs/dm_control_mockup.png)
 
 ### Tech Stack
