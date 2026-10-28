@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Vollkorn:wght@400..900&display=swap');
+
+:root {
+  --color-primary: #d0b8ac;
+  --color-secondary: #f3d8c7;
+  --color-surface: #efe5dc;
+  --color-background: #fbfefb;
+  --color-base: #ffffff;
+
+  font-family: 'Vollkorn', serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  color: #2b2321;
+  background-color: var(--color-background);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.placeholder h1 {
+  font-weight: 700;
+  font-size: 3rem;
+  margin: 0 0 0.5rem;
+}

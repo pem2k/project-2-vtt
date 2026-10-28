@@ -132,11 +132,16 @@ Examples:
 
 Reference issues with `#<number>`: `feat(auth): add signup form (#5)`
 
+### Branches
+
+- `dev` — default working branch. Feature/bugfix/chore branches are cut from `dev` and PR'd back into `dev`. Protected: PR required (no approvals), no force-push or deletion.
+- `main` — release branch. Protected: PR required with 1 approval, resolved threads, no force-push or deletion. Repo admin can bypass. `dev` → `main` merges are done manually by the repo owner — agents never open PRs into or push to `main`.
+
 ### PR Workflow
 
-- One PR per issue. Title matches the issue title.
-- PR description links the issue: `Closes #12`
-- Branch must be up to date with `main` before merge.
+- One PR per issue, targeting `dev`. Title matches the issue title.
+- PR description links the issue: `Closes #12` (the issue auto-closes when the change reaches the default branch, `dev`).
+- Branch must be up to date with `dev` before merge.
 - CI must be green before merge (branch protection).
 - Squash merge to keep history clean.
 
