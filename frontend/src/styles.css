@@ -20,6 +20,19 @@
   box-sizing: border-box;
 }
 
+/* Hide visually but keep available to screen readers (accessible field labels). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -41,4 +54,135 @@ body {
   font-weight: 700;
   font-size: 3rem;
   margin: 0 0 0.5rem;
+}
+
+/* ── Auth (LoginPage) ─────────────────────────────────────────────────────── */
+.auth-page {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.auth-card {
+  width: min(100%, 24rem);
+  background: var(--color-base);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(43, 35, 33, 0.08);
+}
+
+.auth-title {
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: 0.25rem 0 1.5rem;
+  color: #6b5d55;
+  text-align: center;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.auth-field input {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-background);
+  text-align: center;
+}
+
+.auth-submit,
+.btn {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #2b2321;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.auth-error {
+  margin: 0;
+  color: #9b2226;
+  font-weight: 600;
+}
+
+.auth-info {
+  margin: 0;
+  color: #3a6b3a;
+  font-weight: 600;
+}
+
+.auth-toggle {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: #6b5d55;
+}
+
+.auth-link {
+  font: inherit;
+  font-weight: 700;
+  color: #2b2321;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-loading {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+}
+
+/* ── Generic page shell (protected placeholders) ──────────────────────────── */
+.page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 16px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-email {
+  color: #6b5d55;
+}
+
+.page-placeholder {
+  color: #6b5d55;
 }
