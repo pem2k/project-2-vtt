@@ -1,3 +1,4 @@
 (git identity: Najib Hazel Mosquera)
 # Format: [date] [agent] [issue] decision — rationale
 [2026-11-02] [orchestrator] [#2] Added a focused socket scaffold RED test without changing vitest.config.js — the existing global Supabase setup is bypassed with dummy environment variables, and the test exercises the planned createServer contract plus connection lifecycle logging.
+[2026-11-02] [orchestrator] [#5] Added RED tests for injected create-room RPC behavior and `/game/:roomId` room-id rendering — the room RPC remains the database boundary, while the route parameter gives GamePage its room context without adding dependencies.

@@ -1,11 +1,38 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { createRoom, validateRoomDetails } from '../lib/rooms.js';
+import { supabase } from '../lib/supabaseClient.js';
 
-// Lobby shell. The Host / Join controls arrive in #5 / #6; for #4 this just
-// proves the post-login landing spot and provides logout.
 export default function HostJoinPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [roomName, setRoomName] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [roomCode, setRoomCode] = useState(null);
+
+  async function handleCreateRoom(event) {
+    event.preventDefault();
+    const validationError = validateRoomDetails({ roomName, password });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const room = await createRoom(supabase, { roomName, password });
+      setRoomCode(room.room_code);
+      navigate(`/game/${room.id}`, { state: { roomCode: room.room_code } });
+    } catch (createError) {
+      setError(createError.message || 'Unable to create room.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   async function handleLogout() {
     await signOut();
@@ -23,7 +50,34 @@ export default function HostJoinPage() {
           </button>
         </div>
       </header>
-      <p className="page-placeholder">Host or join a room — coming in #5 / #6.</p>
+      <section className="card">
+        <h2>Create Room</h2>
+        <form onSubmit={handleCreateRoom}>
+          <label>
+            Room name
+            <input
+              type="text"
+              value={roomName}
+              onChange={(event) => setRoomName(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
+          {error && <p role="alert">{error}</p>}
+          {roomCode && <p>Your room code is: {roomCode}</p>}
+          <button type="submit" className="btn" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating…' : 'Create Room'}
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

@@ -10,7 +10,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HostJoinPage />} />
-        <Route path="/game" element={<GamePage />} />
+        <Route path="/game/:roomId" element={<GamePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
