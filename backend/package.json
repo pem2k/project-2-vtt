@@ -1,0 +1,20 @@
+{
+  "name": "open-vtt-backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "oPeN VTT backend — Supabase database layer (migrations, RLS, RPCs) and, later, the Socket.IO server (#2).",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  }
+}
