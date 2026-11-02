@@ -5,8 +5,12 @@ Thumbs.db
 # Dependencies
 node_modules/
 
-# Local Vector DB
-.context_vectors.db
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.pyc
 
