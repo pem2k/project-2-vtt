@@ -18,7 +18,7 @@ describe('validateRoomDetails', () => {
 describe('createRoom', () => {
   it('calls the create_room RPC with the room details', async () => {
     const rpc = vi.fn().mockResolvedValue({
-      data: { id: 'room-123', room_code: 'ABC123' },
+      data: [{ id: 'room-123', room_code: 'ABC123' }],
       error: null,
     });
     const client = { rpc };
@@ -31,5 +31,16 @@ describe('createRoom', () => {
       p_name: 'Dungeon',
       p_password: 'secret',
     });
+  });
+
+  it('throws the RPC error when room creation fails', async () => {
+    const error = new Error('Room could not be created');
+    const client = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error }),
+    };
+
+    await expect(
+      createRoom(client, { roomName: 'Dungeon', password: 'secret' }),
+    ).rejects.toThrow('Room could not be created');
   });
 });
