@@ -1,4 +1,5 @@
-# oPeN VTT — Decisions Log
+# oPeN VTT — Decisions Log (git identity: pem2k)
+# Per-developer log — append only your own agents' decisions here; never edit a teammate's log.
 # Format: [date] [agent] [issue] decision — rationale
 
 [2026-10-28] [orchestrator] [#1] Scaffolded frontend/ with `npm create vite@latest . -- --template react` (JS, not TS) — matches docs/folder structure (.jsx files).
@@ -20,3 +21,5 @@
 [2026-10-28] [owner] [repo] AGENTS.md model policy changed by owner: orchestrator defaults to Sonnet (Opus only for complex architecture/multi-step reasoning, never Fable/Astra); workers Sonnet or Haiku. Committed as-is by orchestrator.
 [2026-10-28] [orchestrator] [#21] Removed .github/hooks/tests, moved agent hooks (secret-guard, filter-output, agent-hooks.json) from .github/hooks to Docs/agent/hooks/ — per user request.
 [2026-10-28] [orchestrator] [#21] Removed Docs/agents symlink to eliminate duplicate folder hierarchy in IDE/explorer; standardized canonical path on Docs/agent/ and verified all markdown links.
+
+[2026-11-02] [orchestrator] [chore] Split shared decisions.log into per-git-identity logs under decisions/<git user.name>.log; migrated existing log to decisions/pem2k.log via git mv (preserves history). Rationale: agreed with teammate (NHazelJ) to avoid merge conflicts and double-auditing a shared file across developers' agents.
