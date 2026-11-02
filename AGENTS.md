@@ -13,7 +13,7 @@ This file holds the always-apply guardrails. Detailed reference and task-specifi
 - **Respect the data-flow split:** Supabase for persistent CRUD/auth/storage, Socket.IO for ephemeral broadcast events, React state for UI-only. Security lives in RLS and server-side JWT/membership checks, never in frontend-only guards.
 - **Work test-first:** Red-Green-Refactor, every time.
 
-When a task is ambiguous about the Supabase-vs-Socket.IO boundary or an RLS/permission concern, flag it before writing code. When any task or design decision is ambiguous, flag it and check within the chat before proceeding. Keep a `decisions.log` file, recording agent and subagent decisions for later implementation auditing.
+When a task is ambiguous about the Supabase-vs-Socket.IO boundary or an RLS/permission concern, flag it before writing code. When any task or design decision is ambiguous, flag it and check within the chat before proceeding. Keep a decisions log recording agent and subagent decisions for later implementation auditing. Logs are split by git identity so developers don't conflict on or double-audit a shared file: append to `decisions/<git user.name>.log` (resolve the name with `git config user.name`), creating the file if it doesn't exist. Append only to your own identity's log — never edit a teammate's. Keep the two-line header in each file: a `(git identity: <name>)` title line and `# Format: [date] [agent] [issue] decision — rationale`.
 
 ## Project Context
 
