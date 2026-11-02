@@ -39,8 +39,8 @@ describe('createRoom', () => {
       rpc: vi.fn().mockResolvedValue({ data: null, error }),
     };
 
-    await expect(
-      createRoom(client, { roomName: 'Dungeon', password: 'secret' }),
-    ).rejects.toThrow('Room could not be created');
+    await expect(createRoom(client, { roomName: 'Dungeon', password: 'secret' })).rejects.toThrow(
+      'Room could not be created',
+    );
   });
 });
