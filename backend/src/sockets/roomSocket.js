@@ -34,10 +34,7 @@ export function registerSocketAuth(io, { createSupabaseClient = createClient } =
   });
 }
 
-export function registerJoinRoom(
-  io,
-  { createMembershipClient = createClient } = {},
-) {
+export function registerJoinRoom(io, { createMembershipClient = createClient } = {}) {
   io.on('connection', (socket) => {
     socket.on('joinRoom', async (roomId, acknowledge = () => {}) => {
       try {

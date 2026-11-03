@@ -6,7 +6,9 @@ describe('room socket authentication', () => {
   it('rejects a socket when Supabase cannot verify its access token', async () => {
     const io = { use: vi.fn() };
     const createSupabaseClient = vi.fn(() => ({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error('invalid') }) },
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error('invalid') }),
+      },
     }));
     registerSocketAuth(io, { createSupabaseClient });
     const middleware = io.use.mock.calls[0][0];
@@ -51,8 +53,12 @@ describe('room socket joining', () => {
     registerJoinRoom(io, { createMembershipClient: vi.fn(() => membershipClient) });
     io.emit('connection', socket);
     const ack = vi.fn();
-    socket.emit('joinRoom', 'room-123', ack);
-    await new Promise(setImmediate);
+    await new Promise((resolve) => {
+      socket.emit('joinRoom', 'room-123', (response) => {
+        ack(response);
+        resolve();
+      });
+    });
 
     expect(socket.join).toHaveBeenCalledWith('room-123');
     expect(ack).toHaveBeenCalledWith({ ok: true });
@@ -77,8 +83,12 @@ describe('room socket joining', () => {
     registerJoinRoom(io, { createMembershipClient: vi.fn(() => membershipClient) });
     io.emit('connection', socket);
     const ack = vi.fn();
-    socket.emit('joinRoom', 'room-123', ack);
-    await new Promise(setImmediate);
+    await new Promise((resolve) => {
+      socket.emit('joinRoom', 'room-123', (response) => {
+        ack(response);
+        resolve();
+      });
+    });
 
     expect(socket.join).not.toHaveBeenCalled();
     expect(ack).toHaveBeenCalledWith({ ok: false, error: expect.any(String) });

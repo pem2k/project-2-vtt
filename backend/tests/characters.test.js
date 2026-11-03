@@ -23,7 +23,10 @@ describe('characters RLS, update_character, one-per-player trigger', () => {
   });
 
   it('a member reads all cards; a non-member sees none', async () => {
-    const { data: seen } = await player1.from('characters').select('id').eq('room_id', TEST_ROOM.id);
+    const { data: seen } = await player1
+      .from('characters')
+      .select('id')
+      .eq('room_id', TEST_ROOM.id);
     expect(seen.length).toBeGreaterThanOrEqual(2);
     const { data: hidden } = await outsider
       .from('characters')

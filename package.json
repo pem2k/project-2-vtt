@@ -1,0 +1,21 @@
+{
+  "name": "open-vtt",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{js,jsx,json,css,html}": [
+      "frontend/node_modules/.bin/eslint --fix",
+      "frontend/node_modules/.bin/prettier --write"
+    ],
+    "backend/**/*.{js,json}": [
+      "backend/node_modules/.bin/eslint --fix",
+      "backend/node_modules/.bin/prettier --write"
+    ]
+  }
+}
