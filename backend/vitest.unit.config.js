@@ -7,6 +7,11 @@ export default defineConfig({
       SUPABASE_ANON_KEY: 'test-anon-key',
     },
     environment: 'node',
-    include: ['tests/dice.test.js', 'tests/socket.test.js', 'tests/roomSocket.test.js'],
+    include: [
+      'tests/dice.test.js',
+      'tests/socket.test.js',
+      'tests/socketCors.test.js',
+      'tests/roomSocket.test.js',
+    ],
   },
 });
