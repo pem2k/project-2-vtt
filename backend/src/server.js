@@ -3,6 +3,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import { registerConnectionLogging } from './sockets/connectionLogging.js';
+import { registerJoinRoom, registerSocketAuth } from './sockets/roomSocket.js';
 import { log } from './utils/logger.js';
 
 export function createServer({ io: providedIo, logger = log } = {}) {
@@ -11,6 +12,8 @@ export function createServer({ io: providedIo, logger = log } = {}) {
   const io = providedIo ?? new Server(httpServer);
 
   registerConnectionLogging(io, logger);
+  if (typeof io.use === 'function') registerSocketAuth(io);
+  registerJoinRoom(io);
 
   return { app, httpServer, io };
 }
