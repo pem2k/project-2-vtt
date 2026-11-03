@@ -4,6 +4,7 @@ import prettierConfig from 'eslint-config-prettier';
 
 const nodeGlobals = {
   console: 'readonly',
+  fetch: 'readonly',
   process: 'readonly',
   setImmediate: 'readonly',
 };
