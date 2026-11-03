@@ -54,11 +54,7 @@ describe('tokens RLS + move_token', () => {
       .eq('id', ariaToken.id)
       .select();
     expect(data ?? []).toHaveLength(0); // RLS filtered the row out — 0 updated
-    const { data: check } = await dm
-      .from('tokens')
-      .select('name')
-      .eq('id', ariaToken.id)
-      .single();
+    const { data: check } = await dm.from('tokens').select('name').eq('id', ariaToken.id).single();
     expect(check.name).toBe('Aria');
   });
 
