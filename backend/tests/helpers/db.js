@@ -15,7 +15,6 @@ export const USERS = {
 
 export const TEST_ROOM = {
   id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  code: 'TESTRM',
   password: 'roompass',
 };
 

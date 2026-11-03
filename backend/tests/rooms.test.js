@@ -18,62 +18,92 @@ describe('rooms RLS + room RPCs', () => {
     expect(hidden ?? []).toHaveLength(0);
   });
 
-  it('create_room makes the caller the DM and returns a 6-char code', async () => {
+  it('create_room makes the caller the DM and returns only the new room id', async () => {
     const dm = await signIn(USERS.dm);
     const { data, error } = await dm.rpc('create_room', {
       p_name: 'Waterdeep Nights',
       p_password: 'secret123',
     });
     expect(error).toBeNull();
-    const room = Array.isArray(data) ? data[0] : data;
-    expect(room.room_code).toMatch(/^[A-Z0-9]{6}$/);
+    expect(data).toMatch(/^[0-9a-f-]{36}$/i);
 
     // Creator is now a DM member and can read the room.
-    const { data: membership } = await dm
-      .from('room_members')
-      .select('role')
-      .eq('room_id', room.id);
+    const { data: membership } = await dm.from('room_members').select('role').eq('room_id', data);
     expect(membership).toEqual([{ role: 'dm' }]);
   });
 
-  it('join_room adds a player with the correct password', async () => {
+  it('create_room rejects duplicate names case-insensitively after trimming', async () => {
     const dm = await signIn(USERS.dm);
-    const { data } = await dm.rpc('create_room', {
+    const first = await dm.rpc('create_room', {
+      p_name: '  Barovia  ',
+      p_password: 'mist',
+    });
+    expect(first.error).toBeNull();
+
+    const duplicate = await dm.rpc('create_room', {
+      p_name: 'barovia',
+      p_password: 'another',
+    });
+    expect(duplicate.error).not.toBeNull();
+    expect(duplicate.error.message).toContain('room name already taken');
+  });
+
+  it('join_room looks up a trimmed room name case-insensitively', async () => {
+    const dm = await signIn(USERS.dm);
+    const { data: roomId } = await dm.rpc('create_room', {
       p_name: 'Barovia',
       p_password: 'mist',
     });
-    const room = Array.isArray(data) ? data[0] : data;
 
     const player = await signIn(USERS.player2);
-    const { error } = await player.rpc('join_room', {
-      p_room_code: room.room_code,
+    const { data, error } = await player.rpc('join_room', {
+      p_name: '  bArOvIa  ',
       p_password: 'mist',
     });
     expect(error).toBeNull();
+    expect(data).toBe(roomId);
 
-    const { data: seen } = await player.from('rooms').select('id').eq('id', room.id);
+    const { data: seen } = await player.from('rooms').select('id').eq('id', roomId);
     expect(seen).toHaveLength(1);
   });
 
   it('join_room rejects a wrong password', async () => {
     const dm = await signIn(USERS.dm);
-    const { data } = await dm.rpc('create_room', { p_name: 'Icewind', p_password: 'right' });
-    const room = Array.isArray(data) ? data[0] : data;
+    const { error: createError } = await dm.rpc('create_room', {
+      p_name: 'Icewind',
+      p_password: 'right',
+    });
+    expect(createError).toBeNull();
 
     const player = await signIn(USERS.player2);
     const { error } = await player.rpc('join_room', {
-      p_room_code: room.room_code,
+      p_name: 'Icewind',
       p_password: 'wrong',
     });
-    expect(error).not.toBeNull();
+    expect(error?.message).toContain('invalid password');
   });
 
-  it('join_room rejects an unknown room code', async () => {
+  it('join_room rejects an unknown room name', async () => {
     const player = await signIn(USERS.player2);
     const { error } = await player.rpc('join_room', {
-      p_room_code: 'ZZZZZZ',
+      p_name: 'Unknown Room',
       p_password: 'whatever',
     });
-    expect(error).not.toBeNull();
+    expect(error?.message).toContain('room not found');
+  });
+
+  it('room RPCs require authentication', async () => {
+    const anon = anonClient();
+    const createResult = await anon.rpc('create_room', {
+      p_name: 'Anonymous Room',
+      p_password: 'secret',
+    });
+    const joinResult = await anon.rpc('join_room', {
+      p_name: 'The Sunless Citadel',
+      p_password: 'roompass',
+    });
+
+    expect(createResult.error?.message).toContain('authentication required');
+    expect(joinResult.error?.message).toContain('authentication required');
   });
 });

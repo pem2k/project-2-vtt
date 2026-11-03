@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import GamePage from './GamePage.jsx';
 
 describe('GamePage route', () => {
-  it('renders the room id from /game/:roomId', () => {
+  it('does not render the internal room uuid from /game/:roomId', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/game/room-123']}>
         <Routes>
@@ -13,6 +13,6 @@ describe('GamePage route', () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toMatch(/room-123/);
+    expect(markup).not.toMatch(/room-123/);
   });
 });
