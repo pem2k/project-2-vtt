@@ -2,23 +2,23 @@
 
 > Reference doc linked from [AGENTS.md](../../AGENTS.md). Read when building or locating a feature, wiring a component, or when you need a dependency version or how the pieces fit together.
 
-oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room code, move assigned tokens, update character HP, and roll dice — all in real time.
+oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room name and password, move assigned tokens, update character HP, and roll dice — all in real time.
 
 ## Tech Stack
 
-| Part | Choice | Version | Docs |
-| --- | --- | --- | --- |
-| Runtime | Node.js (LTS) | 24.22.1 | [Node v24 API](https://nodejs.org/docs/latest-v24.x/api/) |
-| Frontend | React + Vite | React 19.3.1, Vite 8.3.5 | [React](https://react.dev/) · [Vite](https://vite.dev/) |
-| Map and tokens | Konva + React Konva | react-konva 19.3.2 | [Konva](https://konvajs.org/docs/) · [React Konva](https://konvajs.org/docs/react/) |
-| Auth | Supabase Auth | — | [Supabase Auth](https://supabase.com/docs/guides/auth) |
-| Database | Supabase (PostgreSQL) | — | [Supabase Database](https://supabase.com/docs/guides/database/overview) |
-| File storage | Supabase Storage | — | [Supabase Storage](https://supabase.com/docs/guides/storage) |
-| Realtime game events | Socket.IO | 4.8.4 | [Socket.IO v4](https://socket.io/docs/v4/) |
-| Backend | Express (thin — just Socket.IO) | 5.3.0 | [Express 5.x API](https://expressjs.com/en/5x/api.html) |
-| Unit/Integration tests | Vitest | — | [Vitest](https://vitest.dev/) |
-| E2E tests | Playwright | — | [Playwright](https://playwright.dev/docs/intro) |
-| Pre-commit hooks | Husky + lint-staged | — | [Husky](https://typicode.github.io/husky/) · [lint-staged](https://github.com/lint-staged/lint-staged) |
+| Part                   | Choice                          | Version                  | Docs                                                                                                   |
+| ---------------------- | ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Runtime                | Node.js (LTS)                   | 24.22.1                  | [Node v24 API](https://nodejs.org/docs/latest-v24.x/api/)                                              |
+| Frontend               | React + Vite                    | React 19.3.1, Vite 8.3.5 | [React](https://react.dev/) · [Vite](https://vite.dev/)                                                |
+| Map and tokens         | Konva + React Konva             | react-konva 19.3.2       | [Konva](https://konvajs.org/docs/) · [React Konva](https://konvajs.org/docs/react/)                    |
+| Auth                   | Supabase Auth                   | —                        | [Supabase Auth](https://supabase.com/docs/guides/auth)                                                 |
+| Database               | Supabase (PostgreSQL)           | —                        | [Supabase Database](https://supabase.com/docs/guides/database/overview)                                |
+| File storage           | Supabase Storage                | —                        | [Supabase Storage](https://supabase.com/docs/guides/storage)                                           |
+| Realtime game events   | Socket.IO                       | 4.8.4                    | [Socket.IO v4](https://socket.io/docs/v4/)                                                             |
+| Backend                | Express (thin — just Socket.IO) | 5.3.0                    | [Express 5.x API](https://expressjs.com/en/5x/api.html)                                                |
+| Unit/Integration tests | Vitest                          | —                        | [Vitest](https://vitest.dev/)                                                                          |
+| E2E tests              | Playwright                      | —                        | [Playwright](https://playwright.dev/docs/intro)                                                        |
+| Pre-commit hooks       | Husky + lint-staged             | —                        | [Husky](https://typicode.github.io/husky/) · [lint-staged](https://github.com/lint-staged/lint-staged) |
 
 ## Architecture
 
@@ -38,7 +38,7 @@ oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create passwor
 ## User Flows
 
 1. **Auth** — User signs up or logs in via Supabase Auth → redirected to HostJoinPage.
-2. **Create room** — DM enters room name + password → Supabase inserts room row → DM gets room code → redirected to GamePage.
-3. **Join room** — Player enters room code + password → Supabase validates → player added to room_members → Socket.IO joins the room channel → redirected to GamePage.
+2. **Create room** — DM enters room name + password → Supabase inserts room row → redirected to GamePage.
+3. **Join room** — Player enters room name + password → Supabase validates → player added to room_members → Socket.IO joins the room channel → redirected to GamePage.
 4. **Encounter setup** — DM uploads map image (Supabase Storage) → image renders on Board → DM uses DMControls to add/name/color/assign tokens.
 5. **Gameplay** — Players drag assigned tokens (Socket.IO broadcasts `tokenMoved`) → update character HP/notes (Supabase update + Socket.IO broadcast) → roll dice (Socket.IO broadcasts `diceResult` with player name and total).
