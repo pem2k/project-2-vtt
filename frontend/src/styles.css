@@ -500,6 +500,78 @@ body {
   flex: 1;
 }
 
+.dm-grid-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2b2321;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  user-select: none;
+}
+
+.dm-grid-toggle-btn:hover {
+  background-color: var(--color-surface);
+}
+
+.dm-grid-toggle-btn.active {
+  background-color: #f7ebe1;
+  border-color: var(--color-primary);
+}
+
+.dm-grid-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.dm-grid-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-surface);
+  border-radius: 4px;
+}
+
+.dm-grid-slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b5d55;
+  user-select: none;
+}
+
+.dm-grid-slider-value {
+  font-family: monospace;
+  font-weight: 700;
+  color: #2b2321;
+}
+
+.dm-grid-slider {
+  width: 100%;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.dm-grid-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .dm-maps-list-section {
   display: flex;
   flex-direction: column;
