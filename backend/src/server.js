@@ -1,6 +1,6 @@
 import express from 'express';
 import { createServer as createHttpServer } from 'node:http';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 import { Server } from 'socket.io';
 import { registerConnectionLogging } from './sockets/connectionLogging.js';
 import { registerJoinRoom, registerSocketAuth } from './sockets/roomSocket.js';
@@ -51,5 +51,12 @@ export function startServer(port = process.env.PORT ?? 3000) {
 
 const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
+  if (!process.env.SUPABASE_URL && typeof process.loadEnvFile === 'function') {
+    try {
+      process.loadEnvFile(new URL('../.env', import.meta.url));
+    } catch {
+      // Ignore if missing
+    }
+  }
   startServer();
 }

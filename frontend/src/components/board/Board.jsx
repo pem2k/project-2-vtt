@@ -37,12 +37,12 @@ function useKonvaImage(url) {
 }
 
 /**
- * Board component (#7, #8, #9).
+ * Board component (#7, #8, #9, #10).
  * Renders the Konva Stage and displays the active map image, grid overlay, and tokens.
  * Layer order:
  * 1. Map Layer (bottom)
  * 2. Grid Layer (overlay on top of map, below tokens)
- * 3. Tokens Layer (top, Issue #9)
+ * 3. Tokens Layer (top, Issue #9, #10)
  */
 export default function Board({
   activeMapUrl,
@@ -71,7 +71,7 @@ export default function Board({
         {/* Layer 2: Grid Overlay (#8) */}
         {showGrid && <Grid width={width} height={height} cellSize={cellSize} />}
 
-        {/* Layer 3: Tokens (Issue #9) */}
+        {/* Layer 3: Tokens (Issue #9, #10) */}
         <Layer>
           {tokens.map((token) => (
             <Token key={token.id} token={token} cellSize={cellSize} />

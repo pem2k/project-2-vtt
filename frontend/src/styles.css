@@ -845,6 +845,26 @@ body {
   white-space: nowrap;
 }
 
+.dm-token-assign-select {
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 3px;
+  background-color: #ffffff;
+  color: #2b2321;
+  outline: none;
+  cursor: pointer;
+  max-width: 110px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dm-token-assign-select:focus {
+  border-color: #8c7b72;
+}
+
 .dm-token-remove-btn {
   background: none;
   border: 1px solid #baa295;
@@ -1021,6 +1041,26 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dm-token-assign-select {
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 3px;
+  background-color: #ffffff;
+  color: #2b2321;
+  outline: none;
+  cursor: pointer;
+  max-width: 110px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dm-token-assign-select:focus {
+  border-color: #8c7b72;
 }
 
 .dm-token-remove-btn {

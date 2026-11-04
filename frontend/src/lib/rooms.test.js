@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createRoom,
+  getRoomMembers,
   getRoomName,
   joinRoom,
   validateJoinDetails,
@@ -103,5 +104,28 @@ describe('getRoomName', () => {
     expect(client.from).toHaveBeenCalledWith('rooms');
     expect(query.select).toHaveBeenCalledWith('name');
     expect(query.eq).toHaveBeenCalledWith('id', 'room-123');
+  });
+});
+
+describe('getRoomMembers', () => {
+  it('calls the get_room_members RPC with the room id', async () => {
+    const mockMembers = [
+      { user_id: 'u1', role: 'dm', display_name: 'DM' },
+      { user_id: 'u2', role: 'player', display_name: 'Player 1' },
+    ];
+    const rpc = vi.fn().mockResolvedValue({ data: mockMembers, error: null });
+    const client = { rpc };
+
+    await expect(getRoomMembers(client, 'room-123')).resolves.toEqual(mockMembers);
+    expect(rpc).toHaveBeenCalledWith('get_room_members', {
+      p_room_id: 'room-123',
+    });
+  });
+
+  it('throws when the get_room_members RPC fails', async () => {
+    const error = new Error('not a member of this room');
+    const client = { rpc: vi.fn().mockResolvedValue({ data: null, error }) };
+
+    await expect(getRoomMembers(client, 'room-123')).rejects.toThrow('not a member of this room');
   });
 });

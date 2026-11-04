@@ -19,10 +19,19 @@ vi.mock('react-konva', () => {
         {children}
       </div>
     ),
-    Circle: ({ radius, fill }) => (
-      <div data-testid="token-circle" data-radius={radius} data-fill={fill} />
+    Circle: ({ radius, fill, dash }) => (
+      <div
+        data-testid="token-circle"
+        data-radius={radius}
+        data-fill={fill}
+        data-dash={dash ? dash.join(',') : undefined}
+      />
     ),
-    Text: ({ text }) => <div data-testid="token-text">{text}</div>,
+    Text: ({ text, fill, stroke }) => (
+      <div data-testid="token-text" data-fill={fill} data-stroke={stroke}>
+        {text}
+      </div>
+    ),
     Line: () => <div data-testid="grid-line" />,
   };
 });
@@ -61,5 +70,35 @@ describe('Board component', () => {
     // Check pixel calculations: (5 + 0.5) * 50 = 275, (5 + 0.5) * 50 = 275
     expect(markup).toContain('data-x="275"');
     expect(markup).toContain('data-y="275"');
+  });
+
+  it('renders only token name on the map (no player name) with dashed outline for unassigned', () => {
+    const tokens = [
+      { id: 't1', name: 'Aria', color: '#4363D8', x: 2, y: 3, assigned_to: 'user-p1' },
+      { id: 't2', name: 'Goblin Scout', color: '#E6194B', x: 5, y: 5, assigned_to: null },
+    ];
+
+    const members = [{ user_id: 'user-p1', role: 'player', display_name: 'Player One' }];
+
+    const markup = renderToStaticMarkup(
+      <Board
+        activeMapUrl="https://example.com/map.png"
+        width={800}
+        height={600}
+        cellSize={50}
+        tokens={tokens}
+        members={members}
+      />,
+    );
+
+    // Token name is rendered, but player name is not shown on the map
+    expect(markup).toContain('Aria');
+    expect(markup).not.toContain('Player One');
+
+    // Token name renders high-contrast white text with black border
+    expect(markup).toContain('data-fill="#ffffff" data-stroke="#000000"');
+
+    // Unassigned token renders dashed outline
+    expect(markup).toContain('data-dash="4,3"');
   });
 });

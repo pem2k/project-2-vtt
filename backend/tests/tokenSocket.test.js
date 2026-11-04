@@ -295,6 +295,147 @@ describe('token socket events', () => {
     expect(ack).toHaveBeenCalledWith({ ok: true });
   });
 
+  it('tokenUpdated: rejects when user is not a DM in the room', async () => {
+    const io = new EventEmitter();
+    const socket = createMockSocket();
+    const client = {
+      from: vi.fn((table) => {
+        if (table === 'room_members') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'player' }, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+      }),
+    };
+
+    registerTokenEvents(io, { createUserClient: () => client });
+    io.emit('connection', socket);
+
+    const ack = vi.fn();
+    await new Promise((resolve) => {
+      socket.emit('tokenUpdated', { roomId: 'room-1', tokenId: 'token-1' }, (res) => {
+        ack(res);
+        resolve();
+      });
+    });
+
+    expect(ack).toHaveBeenCalledWith({
+      ok: false,
+      error: expect.stringMatching(/only dms/i),
+    });
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it('tokenUpdated: rejects when token is missing from the database', async () => {
+    const io = new EventEmitter();
+    const socket = createMockSocket();
+    const client = {
+      from: vi.fn((table) => {
+        if (table === 'room_members') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+        if (table === 'tokens') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+      }),
+    };
+
+    registerTokenEvents(io, { createUserClient: () => client });
+    io.emit('connection', socket);
+
+    const ack = vi.fn();
+    await new Promise((resolve) => {
+      socket.emit('tokenUpdated', { roomId: 'room-1', tokenId: 'token-1' }, (res) => {
+        ack(res);
+        resolve();
+      });
+    });
+
+    expect(ack).toHaveBeenCalledWith({
+      ok: false,
+      error: expect.stringMatching(/token not found/i),
+    });
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it('tokenUpdated: broadcasts the DB row (not the payload) to roomId and acks ok', async () => {
+    const io = new EventEmitter();
+    const socket = createMockSocket({ accessToken: 'bearer-token' });
+    const tokenDbRow = {
+      id: 'token-1',
+      room_id: 'room-1',
+      name: 'Goblin Scout',
+      color: '#E6194B',
+      x: 0,
+      y: 0,
+      assigned_to: 'player-1',
+    };
+
+    const client = {
+      from: vi.fn((table) => {
+        if (table === 'room_members') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+        if (table === 'tokens') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: tokenDbRow, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+      }),
+    };
+
+    registerTokenEvents(io, { createUserClient: () => client });
+    io.emit('connection', socket);
+
+    const ack = vi.fn();
+    await new Promise((resolve) => {
+      socket.emit('tokenUpdated', { roomId: 'room-1', tokenId: 'token-1' }, (res) => {
+        ack(res);
+        resolve();
+      });
+    });
+
+    expect(socket.to).toHaveBeenCalledWith('room-1');
+    expect(socket._broadcastEmit).toHaveBeenCalledWith('tokenUpdated', tokenDbRow);
+    expect(ack).toHaveBeenCalledWith({ ok: true });
+  });
+
   it('runs safely without error when acknowledge callback is omitted', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();

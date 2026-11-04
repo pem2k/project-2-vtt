@@ -1,6 +1,15 @@
+import { URL } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabaseConfig() {
+  if (!process.env.SUPABASE_URL && typeof process.loadEnvFile === 'function') {
+    try {
+      process.loadEnvFile(new URL('../../.env', import.meta.url));
+    } catch {
+      // Ignore if missing
+    }
+  }
+
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY.');
