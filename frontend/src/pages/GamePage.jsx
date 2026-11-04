@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { getActiveMap } from '../lib/maps.js';
+import { getRoomName } from '../lib/rooms.js';
 import DMControls from '../components/DMControls.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
 
 export default function GamePage() {
   const { roomId } = useParams();
-  const { state } = useLocation();
 
-  const [roomName, setRoomName] = useState(state?.roomName || '');
-  const [roomCode, setRoomCode] = useState(state?.roomCode || '');
+  const [roomName, setRoomName] = useState('');
+  const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isDM, setIsDM] = useState(false);
   const [activeMap, setActiveMap] = useState(null);
@@ -29,16 +29,12 @@ export default function GamePage() {
         if (!user) return;
         if (isMounted) setCurrentUser(user);
 
-        // Fetch room name and code if not already in state
-        const { data: roomData } = await supabase
-          .from('rooms')
-          .select('name, room_code')
-          .eq('id', roomId)
-          .maybeSingle();
-
-        if (isMounted && roomData) {
-          if (roomData.name) setRoomName(roomData.name);
-          if (roomData.room_code) setRoomCode(roomData.room_code);
+        // Room name only: the uuid is internal and never shown
+        try {
+          const name = await getRoomName(supabase, roomId);
+          if (isMounted) setRoomName(name);
+        } catch (loadError) {
+          if (isMounted) setError(loadError.message || 'Unable to load room.');
         }
 
         // Determine user role in this room
@@ -83,14 +79,15 @@ export default function GamePage() {
   };
 
   return (
-    <div className="game-screen" data-room-id={roomId}>
-      {/* Top Header: Room Name and Code */}
+    <div className="game-screen">
+      {/* Top Header: Room Name */}
       <header className="game-top-bar">
-        <h1 className="game-room-name">{roomName || 'The Sunless Citadel'}</h1>
-        <div className="game-room-info">
-          <span className="room-code-tag">Code: {roomCode || '---'}</span>
-          <span className="room-id-tag">ID: {roomId}</span>
-        </div>
+        <h1 className="game-room-name">{roomName}</h1>
+        {error && (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        )}
       </header>
 
       {/* Main Layout: Board in center, Chat with DM tab on right */}

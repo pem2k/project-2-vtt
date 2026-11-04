@@ -218,26 +218,6 @@ body {
   color: #2b2321;
 }
 
-.game-room-info {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.95rem;
-  color: #6b5d55;
-}
-
-.room-code-tag {
-  background-color: var(--color-base);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border: 1px solid var(--color-primary);
-}
-
-.room-id-tag {
-  display: none;
-}
-
 .game-main-area {
   display: flex;
   flex: 1;

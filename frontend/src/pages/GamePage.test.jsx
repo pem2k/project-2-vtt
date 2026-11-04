@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import GamePage from './GamePage.jsx';
 
+vi.mock('../lib/supabaseClient.js', () => ({
+  supabase: {},
+}));
+
 describe('GamePage route', () => {
-  it('renders the room id from /game/:roomId', () => {
+  it('does not render the internal room uuid from /game/:roomId', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/game/room-123']}>
         <Routes>
@@ -13,6 +17,6 @@ describe('GamePage route', () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toMatch(/room-123/);
+    expect(markup).not.toMatch(/room-123/);
   });
 });

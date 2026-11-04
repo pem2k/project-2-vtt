@@ -5,7 +5,7 @@
 --   player1@test.dev  22222222-2222-2222-2222-222222222222  (player in the test room)
 --   player2@test.dev  33333333-3333-3333-3333-333333333333  (NOT a member — negative tests)
 --
--- Test room code: TESTRM  (password: roompass)
+-- Test room: The Sunless Citadel  (password: roompass)
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
@@ -46,12 +46,11 @@ values
    now(), now(), now());
 
 -- Test room (password: roompass). Fixed id for predictable tests.
-insert into public.rooms (id, name, password_hash, room_code, created_by)
+insert into public.rooms (id, name, password_hash, created_by)
 values (
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   'The Sunless Citadel',
   extensions.crypt('roompass', extensions.gen_salt('bf')),
-  'TESTRM',
   '11111111-1111-1111-1111-111111111111'
 );
 
