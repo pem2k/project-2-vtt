@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import { registerConnectionLogging } from './sockets/connectionLogging.js';
 import { registerJoinRoom, registerSocketAuth } from './sockets/roomSocket.js';
+import { registerTokenEvents } from './sockets/tokenSocket.js';
 import { log } from './utils/logger.js';
 
 // CORS is enforced by the browser, so the Socket.IO server must explicitly
@@ -35,6 +36,7 @@ export function createServer({ io: providedIo, logger = log } = {}) {
   registerConnectionLogging(io, logger);
   if (typeof io.use === 'function') registerSocketAuth(io);
   registerJoinRoom(io);
+  registerTokenEvents(io);
 
   return { app, httpServer, io };
 }

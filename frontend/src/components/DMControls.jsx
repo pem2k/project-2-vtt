@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadMap, validateMapFile, getRoomMaps, setActiveMap } from '../lib/maps.js';
+import { TOKEN_COLORS, validateTokenInput } from '../lib/tokens.js';
 
 const TABS = [
   { id: 'users', label: 'Users' },
   { id: 'stats', label: 'Stats' },
   { id: 'maps', label: 'Maps' },
+  { id: 'tokens', label: 'Tokens' },
 ];
 
 const STORAGE_KEY = 'open_vtt_dm_controls_layout';
@@ -17,14 +19,14 @@ function getSavedLayout() {
       return {
         x: typeof parsed.x === 'number' ? parsed.x : 32,
         y: typeof parsed.y === 'number' ? parsed.y : 80,
-        width: typeof parsed.width === 'number' ? parsed.width : 320,
-        height: typeof parsed.height === 'number' ? parsed.height : 260,
+        width: typeof parsed.width === 'number' ? Math.max(280, parsed.width) : 320,
+        height: typeof parsed.height === 'number' ? Math.max(310, parsed.height) : 340,
       };
     }
   } catch {
     // Ignore storage parse errors
   }
-  return { x: 32, y: 80, width: 320, height: 260 };
+  return { x: 32, y: 80, width: 320, height: 340 };
 }
 
 /**
@@ -44,13 +46,23 @@ export default function DMControls({
   onToggleGrid,
   gridCellSize = 50,
   onChangeGridCellSize,
+  initialTab = 'users',
+  tokens = [],
+  onAddToken,
+  onRemoveToken,
 }) {
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [mapsList, setMapsList] = useState([]);
   const [loadingMaps, setLoadingMaps] = useState(false);
   const [error, setError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Token form state (#9)
+  const [tokenName, setTokenName] = useState('');
+  const [selectedColor, setSelectedColor] = useState(TOKEN_COLORS[0].hex);
+  const [tokenError, setTokenError] = useState(null);
+  const [isAddingToken, setIsAddingToken] = useState(false);
 
   const fileInputRef = useRef(null);
   const panelRef = useRef(null);
@@ -129,8 +141,8 @@ export default function DMControls({
   const handlePanelMouseUp = () => {
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
-    const width = Math.round(rect.width);
-    const height = Math.round(rect.height);
+    const width = Math.max(280, Math.round(rect.width));
+    const height = Math.max(310, Math.round(rect.height));
 
     setLayout((prev) => {
       const next = { ...prev, width, height };
@@ -223,6 +235,27 @@ export default function DMControls({
       }
     } catch (err) {
       console.error('Failed to set active map:', err);
+    }
+  };
+
+  const handleSubmitToken = async (e) => {
+    e.preventDefault();
+    const validationErr = validateTokenInput({ name: tokenName, color: selectedColor });
+    if (validationErr) {
+      setTokenError(validationErr);
+      return;
+    }
+    setTokenError(null);
+    if (!onAddToken) return;
+
+    setIsAddingToken(true);
+    try {
+      await onAddToken(tokenName.trim(), selectedColor);
+      setTokenName('');
+    } catch (submitErr) {
+      setTokenError(submitErr.message || 'Failed to add token.');
+    } finally {
+      setIsAddingToken(false);
     }
   };
 
@@ -378,6 +411,83 @@ export default function DMControls({
                       </li>
                     );
                   })}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tokens' && (
+          <div className="dm-tab-content dm-tokens-tab">
+            <form onSubmit={handleSubmitToken} className="dm-token-form">
+              <div className="dm-form-group">
+                <label htmlFor="token-name-input" className="dm-label">
+                  Token Name
+                </label>
+                <input
+                  id="token-name-input"
+                  type="text"
+                  className="dm-input"
+                  placeholder="e.g. Goblin Scout"
+                  value={tokenName}
+                  onChange={(e) => setTokenName(e.target.value)}
+                  maxLength={40}
+                  disabled={isAddingToken}
+                />
+              </div>
+
+              <div className="dm-form-group">
+                <span className="dm-label">Token Color</span>
+                <div className="dm-palette-swatches" role="radiogroup" aria-label="Token Color">
+                  {TOKEN_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedColor === c.hex}
+                      aria-label={c.name}
+                      className={`dm-color-swatch ${selectedColor === c.hex ? 'selected' : ''}`}
+                      style={{ backgroundColor: c.hex }}
+                      onClick={() => setSelectedColor(c.hex)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {tokenError && (
+                <p role="alert" className="error-message">
+                  {tokenError}
+                </p>
+              )}
+
+              <button type="submit" className="dm-submit-btn" disabled={isAddingToken}>
+                {isAddingToken ? 'Adding...' : 'Add Token'}
+              </button>
+            </form>
+
+            <div className="dm-tokens-list-section">
+              <h3 className="visually-hidden">Tokens</h3>
+              {tokens.length === 0 ? (
+                <p className="dm-tokens-empty">No tokens on board.</p>
+              ) : (
+                <ul className="dm-tokens-list" role="list" aria-label="Tokens">
+                  {tokens.map((token) => (
+                    <li key={token.id} className="dm-token-item">
+                      <span
+                        className="dm-token-color-dot"
+                        style={{ backgroundColor: token.color }}
+                      />
+                      <span className="dm-token-name">{token.name}</span>
+                      <button
+                        type="button"
+                        className="dm-token-remove-btn"
+                        aria-label={`Remove ${token.name}`}
+                        onClick={() => onRemoveToken && onRemoveToken(token)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>

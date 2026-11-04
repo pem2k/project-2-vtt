@@ -7,6 +7,10 @@ vi.mock('../lib/supabaseClient.js', () => ({
   supabase: {},
 }));
 
+vi.mock('../hooks/useRoomSocket.js', () => ({
+  useRoomSocket: () => ({ socket: null, isReady: false, error: null }),
+}));
+
 describe('GamePage route', () => {
   it('does not render the internal room uuid from /game/:roomId', () => {
     const markup = renderToStaticMarkup(
