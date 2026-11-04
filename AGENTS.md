@@ -29,7 +29,7 @@ oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create passwor
 - **[Docs/agent/conventions.md](Docs/agent/conventions.md)** — naming conventions, preferred libraries, accessibility. Read when writing or reviewing code.
 - **[Docs/agent/git-workflow.md](Docs/agent/git-workflow.md)** — branch naming, conventional commits, the dev/main model, PR workflow. Read before branching, committing, or opening a PR.
 - **[Docs/agent/subagents.md](Docs/agent/subagents.md)** — subagent dispatch roles and the Sonnet-by-default model policy. Read when dispatching subagents or choosing a model.
-- **[Docs/agent/hooks/](Docs/agent/hooks/)** — agent hooks (`secret-guard` to block sensitive files/keys, `filter-output` to condense verbose logs).
+- **[Docs/agent/hooks/](Docs/agent/hooks/)** — agent hooks (`secret-guard` to block sensitive files/keys, `verify-git-writes` to verify git write operations with the user, `filter-output` to condense verbose logs).
 
 ---
 
@@ -44,9 +44,11 @@ oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create passwor
 - Use `supabase db reset` to test against a clean local database.
 - Follow Red-Green-Refactor: commit failing test first, then passing code, then cleanup.
 - Use React state for UI-only state. Use Supabase for persistent state. Use Socket.IO for broadcast state.
+- Always verify with the user before executing any git writes (commit, push, branch, merge, reset, checkout, etc.).
 
 ### Don't
 
+- Never read, write, print, or expose any secret, credential, or `.env` files (e.g. `.env`, `.env.local`, keys, service accounts). Only reference safe example templates like `.env.example`.
 - Don't build REST API routes for CRUD — Supabase PostgREST handles this.
 - Don't store session tokens manually — Supabase Auth manages sessions.
 - Don't mock the database in integration tests — use the local Supabase instance with real RLS.

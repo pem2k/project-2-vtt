@@ -1,0 +1,3 @@
+(git identity: copilot-swe-agent[bot])
+# Format: [date] [agent] [issue] decision — rationale
+[2026-11-04] [copilot] [PR-41 conflict resolution] Kept dev GamePage layout while removing room UUID rendering in UI — preserves new game UI and satisfies privacy-oriented route test expectation.

@@ -2,10 +2,20 @@ import { io } from 'socket.io-client';
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
+let activeSocket = null;
+
 export function connectSocket(accessToken) {
-  return io(socketUrl, {
+  if (activeSocket) {
+    activeSocket.disconnect();
+  }
+  activeSocket = io(socketUrl, {
     auth: { accessToken },
   });
+  return activeSocket;
+}
+
+export function getSocket() {
+  return activeSocket;
 }
 
 export function joinRoomChannel(socket, roomId) {
