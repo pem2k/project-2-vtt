@@ -7,6 +7,7 @@ import {
   getRoomTokens,
   addToken,
   removeToken,
+  assignToken,
 } from './tokens.js';
 
 describe('tokens library', () => {
@@ -184,6 +185,64 @@ describe('tokens library', () => {
       expect(fakeEq).toHaveBeenCalledWith('room_id', 'room-1');
       expect(fakeOrder).toHaveBeenCalledWith('created_at', { ascending: true });
       expect(result).toEqual([{ id: '1', name: 'Goblin' }]);
+    });
+
+    it('assignToken updates assigned_to with userId and returns the updated token', async () => {
+      const updatedRow = { id: 'token-1', name: 'Aria', assigned_to: 'user-123' };
+      const fakeSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
+      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
+      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
+      const fakeSupabase = {
+        from: vi.fn(() => ({ update: fakeUpdate })),
+      };
+
+      const result = await assignToken(fakeSupabase, {
+        tokenId: 'token-1',
+        userId: 'user-123',
+      });
+
+      expect(fakeSupabase.from).toHaveBeenCalledWith('tokens');
+      expect(fakeUpdate).toHaveBeenCalledWith({ assigned_to: 'user-123' });
+      expect(fakeEq).toHaveBeenCalledWith('id', 'token-1');
+      expect(fakeSelect).toHaveBeenCalled();
+      expect(fakeSingle).toHaveBeenCalled();
+      expect(result).toEqual(updatedRow);
+    });
+
+    it('assignToken passes null through when userId is null or omitted', async () => {
+      const updatedRow = { id: 'token-1', name: 'Aria', assigned_to: null };
+      const fakeSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
+      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
+      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
+      const fakeSupabase = {
+        from: vi.fn(() => ({ update: fakeUpdate })),
+      };
+
+      const result = await assignToken(fakeSupabase, {
+        tokenId: 'token-1',
+        userId: null,
+      });
+
+      expect(fakeUpdate).toHaveBeenCalledWith({ assigned_to: null });
+      expect(result).toEqual(updatedRow);
+    });
+
+    it('assignToken throws error when update fails', async () => {
+      const fakeSingle = vi
+        .fn()
+        .mockResolvedValue({ data: null, error: new Error('Update failed') });
+      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
+      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
+      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
+      const fakeSupabase = {
+        from: vi.fn(() => ({ update: fakeUpdate })),
+      };
+
+      await expect(
+        assignToken(fakeSupabase, { tokenId: 'token-1', userId: 'user-1' }),
+      ).rejects.toThrow('Update failed');
     });
   });
 });

@@ -40,3 +40,13 @@ export async function getRoomName(client, roomId) {
 
   return data[0].name;
 }
+
+export async function getRoomMembers(client, roomId) {
+  const { data, error } = await client.rpc('get_room_members', {
+    p_room_id: roomId,
+  });
+
+  if (error) throw error;
+
+  return data ?? [];
+}

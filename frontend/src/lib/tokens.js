@@ -128,3 +128,25 @@ export async function removeToken(supabase, tokenId) {
     throw error;
   }
 }
+
+/**
+ * Assigns or unassigns a token to a user.
+ * @param {object} supabase
+ * @param {object} params
+ * @param {string} params.tokenId
+ * @param {string|null} [params.userId]
+ * @returns {Promise<object>} The updated token record
+ */
+export async function assignToken(supabase, { tokenId, userId }) {
+  const { data, error } = await supabase
+    .from('tokens')
+    .update({ assigned_to: userId ?? null })
+    .eq('id', tokenId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}

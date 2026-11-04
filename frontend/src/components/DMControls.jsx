@@ -48,8 +48,11 @@ export default function DMControls({
   onChangeGridCellSize,
   initialTab = 'users',
   tokens = [],
+  members = [],
   onAddToken,
   onRemoveToken,
+  onAssignToken,
+  onRefreshMembers,
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [mapsList, setMapsList] = useState([]);
@@ -98,6 +101,13 @@ export default function DMControls({
       ignore = true;
     };
   }, [isOpen, activeTab, roomId, supabase]);
+
+  // Refresh room members when Tokens tab is opened (#10)
+  useEffect(() => {
+    if (isOpen && activeTab === 'tokens' && onRefreshMembers) {
+      onRefreshMembers();
+    }
+  }, [isOpen, activeTab, onRefreshMembers]);
 
   // Handle Dragging
   useEffect(() => {
@@ -471,23 +481,47 @@ export default function DMControls({
                 <p className="dm-tokens-empty">No tokens on board.</p>
               ) : (
                 <ul className="dm-tokens-list" role="list" aria-label="Tokens">
-                  {tokens.map((token) => (
-                    <li key={token.id} className="dm-token-item">
-                      <span
-                        className="dm-token-color-dot"
-                        style={{ backgroundColor: token.color }}
-                      />
-                      <span className="dm-token-name">{token.name}</span>
-                      <button
-                        type="button"
-                        className="dm-token-remove-btn"
-                        aria-label={`Remove ${token.name}`}
-                        onClick={() => onRemoveToken && onRemoveToken(token)}
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
+                  {tokens.map((token) => {
+                    const isUnknown = Boolean(
+                      token.assigned_to && !members.some((m) => m.user_id === token.assigned_to),
+                    );
+
+                    return (
+                      <li key={token.id} className="dm-token-item">
+                        <span
+                          className="dm-token-color-dot"
+                          style={{ backgroundColor: token.color }}
+                        />
+                        <span className="dm-token-name">{token.name}</span>
+                        <select
+                          className="dm-token-assign-select"
+                          aria-label={`Assign ${token.name}`}
+                          value={token.assigned_to ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value || null;
+                            onAssignToken?.(token, val);
+                          }}
+                        >
+                          <option value="">Unassigned</option>
+                          {members.map((m) => (
+                            <option key={m.user_id} value={m.user_id}>
+                              {m.display_name}
+                              {m.role === 'dm' ? ' (DM)' : ''}
+                            </option>
+                          ))}
+                          {isUnknown && <option value={token.assigned_to}>Unknown player</option>}
+                        </select>
+                        <button
+                          type="button"
+                          className="dm-token-remove-btn"
+                          aria-label={`Remove ${token.name}`}
+                          onClick={() => onRemoveToken && onRemoveToken(token)}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

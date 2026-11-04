@@ -36,4 +36,46 @@ describe('DMControls tokens tab', () => {
     expect(markup).toContain('Aria');
     expect(markup).toContain('aria-label="Remove Aria"');
   });
+
+  it('renders assignment dropdown for each token with members, DM suffix, and correct selection', () => {
+    const tokens = [
+      { id: 'token-1', name: 'Goblin Scout', color: '#E6194B', assigned_to: 'user-dm' },
+      { id: 'token-2', name: 'Aria', color: '#4363D8', assigned_to: null },
+      { id: 'token-3', name: 'Ghost', color: '#FFFFFF', assigned_to: 'unknown-id' },
+    ];
+
+    const members = [
+      { user_id: 'user-dm', role: 'dm', display_name: 'DungeonMaster' },
+      { user_id: 'user-p1', role: 'player', display_name: 'PlayerOne' },
+    ];
+
+    const onRefreshMembers = vi.fn();
+    const onAssignToken = vi.fn();
+
+    const markup = renderToStaticMarkup(
+      <DMControls
+        isOpen={true}
+        initialTab="tokens"
+        tokens={tokens}
+        members={members}
+        onAssignToken={onAssignToken}
+        onRefreshMembers={onRefreshMembers}
+      />,
+    );
+
+    // Dropdown labels
+    expect(markup).toContain('aria-label="Assign Goblin Scout"');
+    expect(markup).toContain('aria-label="Assign Aria"');
+    expect(markup).toContain('aria-label="Assign Ghost"');
+
+    // Options
+    expect(markup).toContain('Unassigned');
+    expect(markup).toContain('DungeonMaster (DM)');
+    expect(markup).toContain('PlayerOne');
+    // Stale unknown player option
+    expect(markup).toContain('Unknown player');
+
+    // Selection check
+    expect(markup).toMatch(/<option[^>]*value="user-dm"[^>]*selected/);
+  });
 });

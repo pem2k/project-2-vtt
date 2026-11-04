@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { getActiveMap } from '../lib/maps.js';
-import { getRoomName } from '../lib/rooms.js';
+import { getRoomMembers, getRoomName } from '../lib/rooms.js';
 import {
   getRoomTokens,
   addToken,
   removeToken,
+  assignToken,
   upsertToken,
   removeTokenById,
 } from '../lib/tokens.js';
@@ -28,8 +29,18 @@ export default function GamePage() {
   const [showGrid, setShowGrid] = useState(true);
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
+  const [members, setMembers] = useState([]);
 
   const { socket } = useRoomSocket(roomId);
+
+  const refreshMembers = useCallback(async () => {
+    try {
+      const roomMembers = await getRoomMembers(supabase, roomId);
+      setMembers(roomMembers);
+    } catch (memberErr) {
+      console.error('Failed to load room members:', memberErr);
+    }
+  }, [roomId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -77,6 +88,16 @@ export default function GamePage() {
         } catch (tokErr) {
           console.error('Failed to load room tokens:', tokErr);
         }
+
+        // Fetch room members (#10)
+        try {
+          const roomMembers = await getRoomMembers(supabase, roomId);
+          if (isMounted) {
+            setMembers(roomMembers);
+          }
+        } catch (memberErr) {
+          console.error('Failed to load room members:', memberErr);
+        }
       } catch (err) {
         console.error('Error loading game page details:', err);
       } finally {
@@ -105,12 +126,18 @@ export default function GamePage() {
       setTokens((prev) => removeTokenById(prev, id));
     };
 
+    const handleRemoteTokenUpdated = (token) => {
+      setTokens((prev) => upsertToken(prev, token));
+    };
+
     socket.on('tokenAdded', handleRemoteTokenAdded);
     socket.on('tokenRemoved', handleRemoteTokenRemoved);
+    socket.on('tokenUpdated', handleRemoteTokenUpdated);
 
     return () => {
       socket.off('tokenAdded', handleRemoteTokenAdded);
       socket.off('tokenRemoved', handleRemoteTokenRemoved);
+      socket.off('tokenUpdated', handleRemoteTokenUpdated);
     };
   }, [socket]);
 
@@ -156,6 +183,23 @@ export default function GamePage() {
     }
   };
 
+  const handleAssignToken = async (token, userId) => {
+    try {
+      const updated = await assignToken(supabase, { tokenId: token.id, userId });
+      setTokens((prev) => upsertToken(prev, updated));
+      if (socket?.connected) {
+        socket.emit('tokenUpdated', { roomId, tokenId: token.id }, (response) => {
+          if (!response?.ok) {
+            console.warn('Socket tokenUpdated ack failed:', response?.error);
+          }
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to assign token.');
+      throw err;
+    }
+  };
+
   return (
     <div className="game-screen">
       {/* Top Header: Room Name */}
@@ -182,6 +226,7 @@ export default function GamePage() {
                 showGrid={showGrid}
                 cellSize={gridCellSize}
                 tokens={tokens}
+                members={members}
               />
             </div>
           )}
@@ -211,8 +256,11 @@ export default function GamePage() {
           gridCellSize={gridCellSize}
           onChangeGridCellSize={setGridCellSize}
           tokens={tokens}
+          members={members}
           onAddToken={handleAddToken}
           onRemoveToken={handleRemoveToken}
+          onAssignToken={handleAssignToken}
+          onRefreshMembers={refreshMembers}
         />
       )}
     </div>
