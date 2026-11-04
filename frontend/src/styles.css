@@ -370,10 +370,10 @@ body {
 .dm-floating-panel {
   position: fixed;
   width: 320px;
-  min-width: 260px;
+  min-width: 280px;
   max-width: 500px;
-  height: 280px;
-  min-height: 200px;
+  height: 340px;
+  min-height: 310px;
   max-height: 85vh;
   resize: both;
   overflow: hidden;
@@ -476,6 +476,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .dm-tab-content {
@@ -688,4 +689,364 @@ body {
   font-size: 0.78rem;
   font-weight: 600;
   color: #2b2321;
+}
+
+/* ── Tokens Tab Content & Controls (#9) ──────────────────────────────────── */
+.dm-tokens-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.dm-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-surface);
+  flex-shrink: 0;
+}
+
+.dm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dm-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b5d55;
+  user-select: none;
+}
+
+.dm-input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background-color: var(--color-background);
+  color: #2b2321;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.dm-input:focus {
+  border-color: #8c7b72;
+}
+
+.dm-palette-swatches {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px 3px 5px 3px;
+  margin: 0.1rem 0 0.15rem 0;
+}
+
+.dm-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.dm-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.dm-color-swatch.selected {
+  box-shadow: 0 0 0 2px #2b2321;
+  transform: scale(1.15);
+}
+
+.dm-color-swatch:focus-visible {
+  outline: 2px solid #2b2321;
+  outline-offset: 2px;
+}
+
+.dm-submit-btn {
+  padding: 0.4rem 0.6rem;
+  background-color: var(--color-primary);
+  color: #2b2321;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+  margin-top: 0.1rem;
+}
+
+.dm-submit-btn:hover:not(:disabled) {
+  background-color: #c2a79a;
+}
+
+.dm-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dm-tokens-list-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dm-tokens-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dm-token-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-surface);
+  font-size: 0.82rem;
+}
+
+.dm-token-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #2b2321;
+  flex-shrink: 0;
+}
+
+.dm-token-name {
+  flex: 1;
+  color: #2b2321;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-token-remove-btn {
+  background: none;
+  border: 1px solid #baa295;
+  color: #8c2b2b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.dm-token-remove-btn:hover {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+}
+
+.dm-tokens-empty {
+  margin: auto;
+  font-size: 0.8rem;
+  color: #8c7b72;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+/* ── Tokens Tab Content & Controls (#9) ──────────────────────────────────── */
+.dm-tokens-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dm-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-surface);
+  flex-shrink: 0;
+}
+
+.dm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dm-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b5d55;
+  user-select: none;
+}
+
+.dm-input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background-color: var(--color-background);
+  color: #2b2321;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.dm-input:focus {
+  border-color: #8c7b72;
+}
+
+.dm-palette-swatches {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dm-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.dm-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.dm-color-swatch.selected {
+  box-shadow: 0 0 0 2px #2b2321;
+  transform: scale(1.15);
+}
+
+.dm-color-swatch:focus-visible {
+  outline: 2px solid #2b2321;
+  outline-offset: 2px;
+}
+
+.dm-submit-btn {
+  padding: 0.35rem 0.6rem;
+  background-color: var(--color-primary);
+  color: #2b2321;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.dm-submit-btn:hover:not(:disabled) {
+  background-color: #c2a79a;
+}
+
+.dm-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dm-tokens-list-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dm-tokens-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dm-token-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-surface);
+  font-size: 0.82rem;
+}
+
+.dm-token-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #2b2321;
+  flex-shrink: 0;
+}
+
+.dm-token-name {
+  flex: 1;
+  color: #2b2321;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-token-remove-btn {
+  background: none;
+  border: 1px solid #baa295;
+  color: #8c2b2b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.dm-token-remove-btn:hover {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+}
+
+.dm-tokens-empty {
+  margin: auto;
+  font-size: 0.8rem;
+  color: #8c7b72;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem 0;
 }

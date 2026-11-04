@@ -1,6 +1,7 @@
 import React from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import Grid from './Grid.jsx';
+import Token from './Token.jsx';
 
 /**
  * Custom hook to load an image from a URL for Konva.
@@ -36,8 +37,8 @@ function useKonvaImage(url) {
 }
 
 /**
- * Board component (#7, #8).
- * Renders the Konva Stage and displays the active map image and grid overlay.
+ * Board component (#7, #8, #9).
+ * Renders the Konva Stage and displays the active map image, grid overlay, and tokens.
  * Layer order:
  * 1. Map Layer (bottom)
  * 2. Grid Layer (overlay on top of map, below tokens)
@@ -49,6 +50,7 @@ export default function Board({
   height = 600,
   cellSize = 50,
   showGrid = true,
+  tokens = [],
 }) {
   const mapImage = useKonvaImage(activeMapUrl);
 
@@ -70,6 +72,11 @@ export default function Board({
         {showGrid && <Grid width={width} height={height} cellSize={cellSize} />}
 
         {/* Layer 3: Tokens (Issue #9) */}
+        <Layer>
+          {tokens.map((token) => (
+            <Token key={token.id} token={token} cellSize={cellSize} />
+          ))}
+        </Layer>
       </Stage>
     </div>
   );
