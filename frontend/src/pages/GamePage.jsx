@@ -17,6 +17,8 @@ export default function GamePage() {
   const [activeMap, setActiveMap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDMModalOpen, setIsDMModalOpen] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [gridCellSize, setGridCellSize] = useState(50);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,7 +99,13 @@ export default function GamePage() {
             <p className="game-loading-text">Loading game room...</p>
           ) : (
             <div className="game-canvas-wrapper">
-              <Board activeMapUrl={activeMap?.url} width={800} height={600} />
+              <Board
+                activeMapUrl={activeMap?.url}
+                width={800}
+                height={600}
+                showGrid={showGrid}
+                cellSize={gridCellSize}
+              />
             </div>
           )}
         </main>
@@ -121,6 +129,10 @@ export default function GamePage() {
           onClose={() => setIsDMModalOpen(false)}
           onMapUploaded={handleMapUploaded}
           onSelectActiveMap={handleSelectActiveMap}
+          showGrid={showGrid}
+          onToggleGrid={() => setShowGrid((prev) => !prev)}
+          gridCellSize={gridCellSize}
+          onChangeGridCellSize={setGridCellSize}
         />
       )}
     </div>

@@ -40,6 +40,10 @@ export default function DMControls({
   onSelectActiveMap,
   isOpen,
   onClose,
+  showGrid = true,
+  onToggleGrid,
+  gridCellSize = 50,
+  onChangeGridCellSize,
 }) {
   const [activeTab, setActiveTab] = useState('users');
   const [mapsList, setMapsList] = useState([]);
@@ -319,6 +323,39 @@ export default function DMControls({
                 {error}
               </p>
             )}
+
+            {/* Toggle Grid Overlay */}
+            <button
+              type="button"
+              className={`dm-grid-toggle-btn ${showGrid ? 'active' : ''}`}
+              onClick={onToggleGrid}
+              aria-pressed={showGrid}
+            >
+              <span className="dm-grid-toggle-icon">⊞</span>
+              <span>{showGrid ? 'Hide Grid' : 'Show Grid'}</span>
+            </button>
+
+            {/* Grid Cell Size Slider */}
+            <div className="dm-grid-slider-container">
+              <label htmlFor="dm-grid-size-slider" className="dm-grid-slider-label">
+                <span>Grid Size</span>
+                <span className="dm-grid-slider-value">{gridCellSize}px</span>
+              </label>
+              <input
+                id="dm-grid-size-slider"
+                type="range"
+                min="20"
+                max="150"
+                step="5"
+                value={gridCellSize}
+                onChange={(e) =>
+                  onChangeGridCellSize && onChangeGridCellSize(Number(e.target.value))
+                }
+                disabled={!showGrid}
+                className="dm-grid-slider"
+                aria-label="Grid cell size in pixels"
+              />
+            </div>
 
             {/* Scrollable List of Uploaded Maps */}
             <div className="dm-maps-list-section">
