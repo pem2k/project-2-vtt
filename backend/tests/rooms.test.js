@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { anonClient, signIn, USERS, TEST_ROOM } from './helpers/db.js';
 
 // Rooms: members-only reads, and create_room / join_room RPCs (password handling).
+const uniqueRoomName = (base) => `${base} ${randomUUID()}`;
+
 describe('rooms RLS + room RPCs', () => {
   it('anon cannot read rooms', async () => {
     const { data } = await anonClient().from('rooms').select('*');
@@ -20,8 +23,9 @@ describe('rooms RLS + room RPCs', () => {
 
   it('create_room makes the caller the DM and returns only the new room id', async () => {
     const dm = await signIn(USERS.dm);
+    const roomName = uniqueRoomName('Waterdeep Nights');
     const { data, error } = await dm.rpc('create_room', {
-      p_name: 'Waterdeep Nights',
+      p_name: roomName,
       p_password: 'secret123',
     });
     expect(error).toBeNull();
@@ -34,14 +38,15 @@ describe('rooms RLS + room RPCs', () => {
 
   it('create_room rejects duplicate names case-insensitively after trimming', async () => {
     const dm = await signIn(USERS.dm);
+    const roomName = uniqueRoomName('Barovia');
     const first = await dm.rpc('create_room', {
-      p_name: '  Barovia  ',
+      p_name: `  ${roomName}  `,
       p_password: 'mist',
     });
     expect(first.error).toBeNull();
 
     const duplicate = await dm.rpc('create_room', {
-      p_name: 'barovia',
+      p_name: roomName.toLowerCase(),
       p_password: 'another',
     });
     expect(duplicate.error).not.toBeNull();
@@ -50,14 +55,15 @@ describe('rooms RLS + room RPCs', () => {
 
   it('join_room looks up a trimmed room name case-insensitively', async () => {
     const dm = await signIn(USERS.dm);
+    const roomName = uniqueRoomName('Barovia');
     const { data: roomId } = await dm.rpc('create_room', {
-      p_name: 'Barovia',
+      p_name: roomName,
       p_password: 'mist',
     });
 
     const player = await signIn(USERS.player2);
     const { data, error } = await player.rpc('join_room', {
-      p_name: '  bArOvIa  ',
+      p_name: `  ${roomName.toLowerCase()}  `,
       p_password: 'mist',
     });
     expect(error).toBeNull();
@@ -69,15 +75,16 @@ describe('rooms RLS + room RPCs', () => {
 
   it('join_room rejects a wrong password', async () => {
     const dm = await signIn(USERS.dm);
+    const roomName = uniqueRoomName('Icewind');
     const { error: createError } = await dm.rpc('create_room', {
-      p_name: 'Icewind',
+      p_name: roomName,
       p_password: 'right',
     });
     expect(createError).toBeNull();
 
     const player = await signIn(USERS.player2);
     const { error } = await player.rpc('join_room', {
-      p_name: 'Icewind',
+      p_name: roomName,
       p_password: 'wrong',
     });
     expect(error?.message).toContain('invalid password');
