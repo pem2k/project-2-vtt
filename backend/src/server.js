@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import { registerConnectionLogging } from './sockets/connectionLogging.js';
 import { registerJoinRoom, registerSocketAuth } from './sockets/roomSocket.js';
+import { registerTokenEvents } from './sockets/tokenSocket.js';
 
 // CORS is enforced by the browser, so the Socket.IO server must explicitly
 // allow the frontend's origin or the handshake is blocked cross-origin. The
@@ -34,6 +35,7 @@ export function createServer({ io: providedIo, logger = console.log } = {}) {
   registerConnectionLogging(io, logger);
   registerSocketAuth(io);
   registerJoinRoom(io, { logger });
+  registerTokenEvents(io);
 
   return { app, httpServer, io };
 }

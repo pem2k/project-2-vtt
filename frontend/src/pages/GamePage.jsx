@@ -3,6 +3,14 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { getActiveMap } from '../lib/maps.js';
 import { getRoomName } from '../lib/rooms.js';
+import {
+  getRoomTokens,
+  addToken,
+  removeToken,
+  upsertToken,
+  removeTokenById,
+} from '../lib/tokens.js';
+import { useRoomSocket } from '../hooks/useRoomSocket.js';
 import DMControls from '../components/DMControls.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
@@ -17,6 +25,11 @@ export default function GamePage() {
   const [activeMap, setActiveMap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDMModalOpen, setIsDMModalOpen] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [gridCellSize, setGridCellSize] = useState(50);
+  const [tokens, setTokens] = useState([]);
+
+  const { socket } = useRoomSocket(roomId);
 
   useEffect(() => {
     let isMounted = true;
@@ -54,6 +67,16 @@ export default function GamePage() {
         if (isMounted) {
           setActiveMap(map);
         }
+
+        // Fetch tokens for this room (#9)
+        try {
+          const loadedTokens = await getRoomTokens(supabase, roomId);
+          if (isMounted) {
+            setTokens(loadedTokens);
+          }
+        } catch (tokErr) {
+          console.error('Failed to load room tokens:', tokErr);
+        }
       } catch (err) {
         console.error('Error loading game page details:', err);
       } finally {
@@ -70,12 +93,67 @@ export default function GamePage() {
     };
   }, [roomId]);
 
+  // Subscribe to real-time token events broadcast by other room members
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleRemoteTokenAdded = (token) => {
+      setTokens((prev) => upsertToken(prev, token));
+    };
+
+    const handleRemoteTokenRemoved = ({ id }) => {
+      setTokens((prev) => removeTokenById(prev, id));
+    };
+
+    socket.on('tokenAdded', handleRemoteTokenAdded);
+    socket.on('tokenRemoved', handleRemoteTokenRemoved);
+
+    return () => {
+      socket.off('tokenAdded', handleRemoteTokenAdded);
+      socket.off('tokenRemoved', handleRemoteTokenRemoved);
+    };
+  }, [socket]);
+
   const handleMapUploaded = (mapRecord) => {
     setActiveMap(mapRecord);
   };
 
   const handleSelectActiveMap = (mapRecord) => {
     setActiveMap(mapRecord);
+  };
+
+  const handleAddToken = async (name, color) => {
+    try {
+      const created = await addToken(supabase, { roomId, name, color });
+      setTokens((prev) => upsertToken(prev, created));
+      if (socket?.connected) {
+        socket.emit('tokenAdded', { roomId, tokenId: created.id }, (response) => {
+          if (!response?.ok) {
+            console.warn('Socket tokenAdded ack failed:', response?.error);
+          }
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to add token.');
+      throw err;
+    }
+  };
+
+  const handleRemoveToken = async (token) => {
+    try {
+      await removeToken(supabase, token.id);
+      setTokens((prev) => removeTokenById(prev, token.id));
+      if (socket?.connected) {
+        socket.emit('tokenRemoved', { roomId, tokenId: token.id }, (response) => {
+          if (!response?.ok) {
+            console.warn('Socket tokenRemoved ack failed:', response?.error);
+          }
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to remove token.');
+      throw err;
+    }
   };
 
   return (
@@ -97,7 +175,14 @@ export default function GamePage() {
             <p className="game-loading-text">Loading game room...</p>
           ) : (
             <div className="game-canvas-wrapper">
-              <Board activeMapUrl={activeMap?.url} width={800} height={600} />
+              <Board
+                activeMapUrl={activeMap?.url}
+                width={800}
+                height={600}
+                showGrid={showGrid}
+                cellSize={gridCellSize}
+                tokens={tokens}
+              />
             </div>
           )}
         </main>
@@ -121,6 +206,13 @@ export default function GamePage() {
           onClose={() => setIsDMModalOpen(false)}
           onMapUploaded={handleMapUploaded}
           onSelectActiveMap={handleSelectActiveMap}
+          showGrid={showGrid}
+          onToggleGrid={() => setShowGrid((prev) => !prev)}
+          gridCellSize={gridCellSize}
+          onChangeGridCellSize={setGridCellSize}
+          tokens={tokens}
+          onAddToken={handleAddToken}
+          onRemoveToken={handleRemoveToken}
         />
       )}
     </div>
