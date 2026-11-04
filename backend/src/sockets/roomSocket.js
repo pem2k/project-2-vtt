@@ -9,6 +9,8 @@ function getSupabaseConfig() {
 }
 
 export function registerSocketAuth(io, { createSupabaseClient = createClient } = {}) {
+  const { url, anonKey } = getSupabaseConfig();
+
   io.use(async (socket, next) => {
     const accessToken = socket.handshake.auth?.accessToken;
     if (!accessToken) {
@@ -17,7 +19,6 @@ export function registerSocketAuth(io, { createSupabaseClient = createClient } =
     }
 
     try {
-      const { url, anonKey } = getSupabaseConfig();
       const client = createSupabaseClient(url, anonKey);
       const { data, error } = await client.auth.getUser(accessToken);
       if (error || !data.user) {
@@ -34,7 +35,10 @@ export function registerSocketAuth(io, { createSupabaseClient = createClient } =
   });
 }
 
-export function registerJoinRoom(io, { createMembershipClient = createClient } = {}) {
+export function registerJoinRoom(
+  io,
+  { createMembershipClient = createClient, logger = console.log } = {},
+) {
   io.on('connection', (socket) => {
     socket.on('joinRoom', async (roomId, acknowledge = () => {}) => {
       try {
@@ -58,7 +62,8 @@ export function registerJoinRoom(io, { createMembershipClient = createClient } =
         await socket.join(roomId);
         acknowledge({ ok: true });
       } catch (error) {
-        acknowledge({ ok: false, error: error.message || 'Unable to join room.' });
+        logger(error);
+        acknowledge({ ok: false, error: 'Unable to join room.' });
       }
     });
   });
