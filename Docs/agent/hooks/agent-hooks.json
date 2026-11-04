@@ -6,6 +6,11 @@
         "type": "command",
         "command": "node Docs/agent/hooks/secret-guard.cjs",
         "timeoutSec": 10
+      },
+      {
+        "type": "command",
+        "command": "node Docs/agent/hooks/verify-git-writes.cjs",
+        "timeoutSec": 10
       }
     ],
     "postToolUse": [

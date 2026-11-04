@@ -94,3 +94,14 @@ Tokens must be visually distinct and, per the accessibility rules in [AGENTS.md]
 | Pink | `#F032E6` | Player |
 
 These are chosen for maximum mutual contrast so overlapping tokens on the board stay distinguishable.
+
+---
+
+## D&D 5e Rules Reference
+
+For reference to official D&D 5th Edition rules and game mechanics:
+- **Rules Index**: [D&D Beyond Basic Rules (2014)](https://www.dndbeyond.com/sources/dnd/basic-rules-2014)
+
+> [!IMPORTANT]
+> **Agent Directive:** Do **not** read or fetch this reference without explicitly consulting the user first. Whenever basic D&D 5e mechanics knowledge would be useful for a feature or design decision, check with the user before accessing specific sections of this rules index.
+
