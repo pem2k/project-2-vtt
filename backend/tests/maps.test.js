@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { anonClient, signIn, USERS, TEST_ROOM } from './helpers/db.js';
 
@@ -77,18 +78,17 @@ describe('maps schema & RLS policies (#7)', () => {
   it('automatically sets active_map_id on rooms when the first map is inserted', async () => {
     const dm = await signIn(USERS.dm);
     // Create fresh room with no maps
-    const { data: newRoomData, error: roomError } = await dm.rpc('create_room', {
-      p_name: 'Castle Ravenloft',
+    const { data: newRoomId, error: roomError } = await dm.rpc('create_room', {
+      p_name: `Castle Ravenloft ${randomUUID()}`,
       p_password: 'vampirepassword',
     });
     expect(roomError).toBeNull();
-    const newRoom = Array.isArray(newRoomData) ? newRoomData[0] : newRoomData;
 
     // Check active_map_id is initially null
     const { data: initialRoom } = await dm
       .from('rooms')
       .select('active_map_id')
-      .eq('id', newRoom.id)
+      .eq('id', newRoomId)
       .single();
     expect(initialRoom.active_map_id).toBeNull();
 
@@ -96,7 +96,7 @@ describe('maps schema & RLS policies (#7)', () => {
     const { data: firstMap, error: map1Error } = await dm
       .from('maps')
       .insert({
-        room_id: newRoom.id,
+        room_id: newRoomId,
         name: 'Ravenloft Floor 1',
         url: 'https://example.com/ravenloft1.png',
       })
@@ -108,7 +108,7 @@ describe('maps schema & RLS policies (#7)', () => {
     const { data: updatedRoom } = await dm
       .from('rooms')
       .select('active_map_id')
-      .eq('id', newRoom.id)
+      .eq('id', newRoomId)
       .single();
     expect(updatedRoom.active_map_id).toBe(firstMap.id);
 
@@ -116,7 +116,7 @@ describe('maps schema & RLS policies (#7)', () => {
     const { error: map2Error } = await dm
       .from('maps')
       .insert({
-        room_id: newRoom.id,
+        room_id: newRoomId,
         name: 'Ravenloft Catacombs',
         url: 'https://example.com/catacombs.png',
       })
@@ -127,7 +127,7 @@ describe('maps schema & RLS policies (#7)', () => {
     const { data: roomAfterSecondMap } = await dm
       .from('rooms')
       .select('active_map_id')
-      .eq('id', newRoom.id)
+      .eq('id', newRoomId)
       .single();
     expect(roomAfterSecondMap.active_map_id).toBe(firstMap.id);
   });
