@@ -76,13 +76,6 @@ export default function HostJoinPage() {
 
   return (
     <main className="auth-page">
-      <header className="page-user">
-        {user?.email && <span className="page-email">{user.email}</span>}
-        <button type="button" className="btn" onClick={handleLogout}>
-          Log out
-        </button>
-      </header>
-
       <section className="auth-card">
         {screen === 'selection' && (
           <>
@@ -175,6 +168,15 @@ export default function HostJoinPage() {
           </>
         )}
       </section>
+
+      {screen === 'selection' && (
+        <div className="selection-footer">
+          <button type="button" className="auth-submit selection-logout" onClick={handleLogout}>
+            Log out
+          </button>
+          {user?.email && <p className="selection-email">Signed in as {user.email}</p>}
+        </div>
+      )}
     </main>
   );
 }
