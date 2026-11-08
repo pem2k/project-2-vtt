@@ -1,23 +1,7 @@
-import { URL } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from '../utils/supabaseConfig.js';
 
-function getSupabaseConfig() {
-  if (!process.env.SUPABASE_URL && typeof process.loadEnvFile === 'function') {
-    try {
-      process.loadEnvFile(new URL('../../.env', import.meta.url));
-    } catch {
-      // Ignore if missing
-    }
-  }
-
-  const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY.');
-  }
-  return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
-}
-
-function authorizeDmTokenEvent(socket, payload, createUserClient) {
+function validateTokenPayload(socket, payload) {
   const { roomId, tokenId } = payload || {};
   if (
     typeof roomId !== 'string' ||
@@ -25,34 +9,34 @@ function authorizeDmTokenEvent(socket, payload, createUserClient) {
     typeof tokenId !== 'string' ||
     !tokenId.trim()
   ) {
-    const syncRes = { ok: false, error: 'Invalid payload.' };
-    return Object.assign(Promise.resolve(syncRes), syncRes);
+    return { ok: false, error: 'Invalid payload.' };
   }
 
   if (!socket.rooms?.has(roomId)) {
-    const syncRes = { ok: false, error: 'Socket is not in room.' };
-    return Object.assign(Promise.resolve(syncRes), syncRes);
+    return { ok: false, error: 'Socket is not in room.' };
   }
 
+  return { ok: true, roomId, tokenId };
+}
+
+async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
   const { url, anonKey } = getSupabaseConfig();
   const client = createUserClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${socket.accessToken}` } },
   });
 
-  return (async () => {
-    const { data: member, error: memberError } = await client
-      .from('room_members')
-      .select('role')
-      .eq('room_id', roomId)
-      .eq('user_id', socket.user?.id)
-      .maybeSingle();
+  const { data: member, error: memberError } = await client
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', socket.user?.id)
+    .maybeSingle();
 
-    if (memberError || member?.role !== 'dm') {
-      return { ok: false, error: 'Only DMs can manage tokens.' };
-    }
+  if (memberError || member?.role !== 'dm') {
+    return { ok: false, error: 'Only DMs can manage tokens.' };
+  }
 
-    return { ok: true, client, roomId, tokenId };
-  })();
+  return { ok: true, client };
 }
 
 /**
@@ -69,19 +53,20 @@ export function registerTokenEvents(io, { createUserClient = createClient } = {}
     socket.on('tokenAdded', async (payload, acknowledge = () => {}) => {
       const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
       try {
-        const auth = authorizeDmTokenEvent(socket, payload, createUserClient);
-        if (auth.ok === false) {
-          ack({ ok: false, error: auth.error });
+        const valid = validateTokenPayload(socket, payload);
+        if (!valid.ok) {
+          ack({ ok: false, error: valid.error });
           return;
         }
 
-        const res = await auth;
-        if (!res.ok) {
-          ack({ ok: false, error: res.error });
+        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
+        if (!authz.ok) {
+          ack({ ok: false, error: authz.error });
           return;
         }
 
-        const { client, roomId, tokenId } = res;
+        const { client } = authz;
+        const { roomId, tokenId } = valid;
         const { data: tokenRow, error: tokenError } = await client
           .from('tokens')
           .select('*')
@@ -104,19 +89,20 @@ export function registerTokenEvents(io, { createUserClient = createClient } = {}
     socket.on('tokenRemoved', async (payload, acknowledge = () => {}) => {
       const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
       try {
-        const auth = authorizeDmTokenEvent(socket, payload, createUserClient);
-        if (auth.ok === false) {
-          ack({ ok: false, error: auth.error });
+        const valid = validateTokenPayload(socket, payload);
+        if (!valid.ok) {
+          ack({ ok: false, error: valid.error });
           return;
         }
 
-        const res = await auth;
-        if (!res.ok) {
-          ack({ ok: false, error: res.error });
+        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
+        if (!authz.ok) {
+          ack({ ok: false, error: authz.error });
           return;
         }
 
-        const { client, roomId, tokenId } = res;
+        const { client } = authz;
+        const { roomId, tokenId } = valid;
         const { data: existingToken, error: checkError } = await client
           .from('tokens')
           .select('id')
@@ -144,19 +130,20 @@ export function registerTokenEvents(io, { createUserClient = createClient } = {}
     socket.on('tokenUpdated', async (payload, acknowledge = () => {}) => {
       const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
       try {
-        const auth = authorizeDmTokenEvent(socket, payload, createUserClient);
-        if (auth.ok === false) {
-          ack({ ok: false, error: auth.error });
+        const valid = validateTokenPayload(socket, payload);
+        if (!valid.ok) {
+          ack({ ok: false, error: valid.error });
           return;
         }
 
-        const res = await auth;
-        if (!res.ok) {
-          ack({ ok: false, error: res.error });
+        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
+        if (!authz.ok) {
+          ack({ ok: false, error: authz.error });
           return;
         }
 
-        const { client, roomId, tokenId } = res;
+        const { client } = authz;
+        const { roomId, tokenId } = valid;
         const { data: tokenRow, error: tokenError } = await client
           .from('tokens')
           .select('*')
