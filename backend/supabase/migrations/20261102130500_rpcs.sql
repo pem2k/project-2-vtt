@@ -87,8 +87,9 @@ security definer
 set search_path = public
 as $$
 declare
-  v_uid   uuid := auth.uid();
-  v_token public.tokens;
+  v_uid        uuid := auth.uid();
+  v_token      public.tokens;
+  v_authorized boolean;
 begin
   if v_uid is null then
     raise exception 'authentication required';
@@ -99,7 +100,10 @@ begin
     raise exception 'token not found';
   end if;
 
-  if not (public.is_room_dm(v_token.room_id) or v_token.assigned_to = v_uid) then
+  v_authorized := public.is_room_dm(v_token.room_id)
+    or (v_token.assigned_to is not null and v_token.assigned_to = v_uid);
+
+  if v_authorized is not true then
     raise exception 'not allowed to move this token';
   end if;
 

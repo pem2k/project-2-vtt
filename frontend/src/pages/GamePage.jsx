@@ -226,7 +226,6 @@ export default function GamePage() {
                 showGrid={showGrid}
                 cellSize={gridCellSize}
                 tokens={tokens}
-                members={members}
               />
             </div>
           )}
