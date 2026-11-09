@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { createRoom, joinRoom, validateRoomDetails } from '../lib/rooms.js';
-import { connectSocket, joinRoomChannel } from '../lib/socket.js';
+import { disconnectSocket } from '../lib/socket.js';
 import { supabase } from '../lib/supabaseClient.js';
 
 export default function HostJoinPage() {
-  const { session, user, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [screen, setScreen] = useState('selection');
   const [roomName, setRoomName] = useState('');
@@ -44,18 +44,10 @@ export default function HostJoinPage() {
 
     setError(null);
     setIsSubmitting(true);
-    let socket;
     try {
       const roomId = await joinRoom(supabase, { roomName, password });
-      socket = connectSocket(session.access_token);
-      await new Promise((resolve, reject) => {
-        socket.once('connect', resolve);
-        socket.once('connect_error', reject);
-      });
-      await joinRoomChannel(socket, roomId);
       navigate(`/game/${roomId}`);
     } catch (joinError) {
-      socket?.disconnect();
       setError(joinError.message || 'Unable to join room.');
     } finally {
       setIsSubmitting(false);
@@ -63,6 +55,7 @@ export default function HostJoinPage() {
   }
 
   async function handleLogout() {
+    disconnectSocket();
     await signOut();
     navigate('/login', { replace: true });
   }
