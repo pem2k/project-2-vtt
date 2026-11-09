@@ -4,6 +4,7 @@ import {
   validateTokenInput,
   upsertToken,
   removeTokenById,
+  reconcileTokens,
   getRoomTokens,
   addToken,
   removeToken,
@@ -243,6 +244,67 @@ describe('tokens library', () => {
       await expect(
         assignToken(fakeSupabase, { tokenId: 'token-1', userId: 'user-1' }),
       ).rejects.toThrow('Update failed');
+    });
+  });
+
+  describe('reconcileTokens', () => {
+    it('returns the snapshot unmodified when no pending events exist', () => {
+      const snapshot = [
+        { id: 't1', name: 'Aria', x: 0, y: 0 },
+        { id: 't2', name: 'Bruenor', x: 1, y: 1 },
+      ];
+      expect(reconcileTokens(snapshot, [])).toEqual(snapshot);
+    });
+
+    it('overlays in-flight tokenAdded events on top of snapshot', () => {
+      const snapshot = [{ id: 't1', name: 'Aria', x: 0, y: 0 }];
+      const pendingEvents = [
+        { type: 'tokenAdded', token: { id: 't2', name: 'Catti-brie', x: 2, y: 3 } },
+      ];
+
+      const result = reconcileTokens(snapshot, pendingEvents);
+      expect(result).toHaveLength(2);
+      expect(result.find((t) => t.id === 't2')).toEqual({
+        id: 't2',
+        name: 'Catti-brie',
+        x: 2,
+        y: 3,
+      });
+    });
+
+    it('prevents older snapshot state from overwriting newer tokenUpdated events', () => {
+      const snapshot = [{ id: 't1', name: 'Aria', x: 0, y: 0 }]; // older snapshot position
+      const pendingEvents = [
+        { type: 'tokenUpdated', token: { id: 't1', name: 'Aria', x: 50, y: 75 } },
+      ];
+
+      const result = reconcileTokens(snapshot, pendingEvents);
+      expect(result).toHaveLength(1);
+      expect(result[0].x).toBe(50);
+      expect(result[0].y).toBe(75);
+    });
+
+    it('removes tokens deleted via tokenRemoved events during in-flight snapshot', () => {
+      const snapshot = [
+        { id: 't1', name: 'Aria', x: 0, y: 0 },
+        { id: 't2', name: 'Bruenor', x: 1, y: 1 },
+      ];
+      const pendingEvents = [{ type: 'tokenRemoved', id: 't2' }];
+
+      const result = reconcileTokens(snapshot, pendingEvents);
+      expect(result).toEqual([{ id: 't1', name: 'Aria', x: 0, y: 0 }]);
+    });
+
+    it('replays a sequence of mixed events in exact order', () => {
+      const snapshot = [{ id: 't1', name: 'Aria', x: 0, y: 0 }];
+      const pendingEvents = [
+        { type: 'tokenAdded', token: { id: 't2', name: 'Bruenor', x: 5, y: 5 } },
+        { type: 'tokenUpdated', token: { id: 't2', name: 'Bruenor Battlehammer', x: 10, y: 10 } },
+        { type: 'tokenRemoved', id: 't1' },
+      ];
+
+      const result = reconcileTokens(snapshot, pendingEvents);
+      expect(result).toEqual([{ id: 't2', name: 'Bruenor Battlehammer', x: 10, y: 10 }]);
     });
   });
 });

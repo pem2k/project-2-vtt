@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import HostJoinPage from './HostJoinPage.jsx';
 
@@ -16,12 +16,20 @@ vi.mock('../lib/supabaseClient.js', () => ({
 }));
 
 describe('HostJoinPage selection screen', () => {
-  it('initially shows Host and Join actions without a password field', () => {
-    const markup = renderToStaticMarkup(
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function renderHostJoinPage() {
+    return renderToStaticMarkup(
       <MemoryRouter>
         <HostJoinPage />
       </MemoryRouter>,
     );
+  }
+
+  it('initially shows Host and Join actions without a password field', () => {
+    const markup = renderHostJoinPage();
 
     expect(markup).toMatch(/Host/);
     expect(markup).toMatch(/Join/);
@@ -29,41 +37,25 @@ describe('HostJoinPage selection screen', () => {
   });
 
   it('shows a Log out button on the selection screen', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <HostJoinPage />
-      </MemoryRouter>,
-    );
+    const markup = renderHostJoinPage();
 
     expect(markup).toMatch(/>Log out</);
   });
 
   it('shows "Signed in as <email>" text on the selection screen', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <HostJoinPage />
-      </MemoryRouter>,
-    );
+    const markup = renderHostJoinPage();
 
     expect(markup).toContain('Signed in as dm@test.dev');
   });
 
   it('does not render the page-user header', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <HostJoinPage />
-      </MemoryRouter>,
-    );
+    const markup = renderHostJoinPage();
 
     expect(markup).not.toMatch(/page-user/);
   });
 
   it('renders Log out and signed-in text outside and below the auth-card', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <HostJoinPage />
-      </MemoryRouter>,
-    );
+    const markup = renderHostJoinPage();
 
     // The auth-card should close before the Log out button appears
     const cardCloseIndex = markup.lastIndexOf('</section>');
