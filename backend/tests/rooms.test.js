@@ -90,6 +90,76 @@ describe('rooms RLS + room RPCs', () => {
     expect(error?.message).toContain('invalid password');
   });
 
+  it('join_room rejects null password and prevents unauthorized membership', async () => {
+    const dm = await signIn(USERS.dm);
+    const roomName = uniqueRoomName('Secure Crypt');
+    const { data: roomId, error: createError } = await dm.rpc('create_room', {
+      p_name: roomName,
+      p_password: 'vault-password',
+    });
+    expect(createError).toBeNull();
+
+    const player = await signIn(USERS.player2);
+
+    // 1. Passing null password must return an error and create no room membership
+    const nullAttempt = await player.rpc('join_room', {
+      p_name: roomName,
+      p_password: null,
+    });
+    expect(nullAttempt.error).not.toBeNull();
+    expect(nullAttempt.error?.message).toContain('invalid password');
+
+    const { data: nullMembers } = await player
+      .from('room_members')
+      .select('*')
+      .eq('room_id', roomId);
+    expect(nullMembers ?? []).toHaveLength(0);
+
+    // 2. Passing a wrong password must reject and create no room membership
+    const wrongAttempt = await player.rpc('join_room', {
+      p_name: roomName,
+      p_password: 'wrong-password',
+    });
+    expect(wrongAttempt.error).not.toBeNull();
+    expect(wrongAttempt.error?.message).toContain('invalid password');
+
+    const { data: wrongMembers } = await player
+      .from('room_members')
+      .select('*')
+      .eq('room_id', roomId);
+    expect(wrongMembers ?? []).toHaveLength(0);
+
+    // 3. Successful joining with the correct password creates membership
+    const joinAttempt = await player.rpc('join_room', {
+      p_name: roomName,
+      p_password: 'vault-password',
+    });
+    expect(joinAttempt.error).toBeNull();
+    expect(joinAttempt.data).toBe(roomId);
+
+    const { data: activeMembers } = await player
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId);
+    expect(activeMembers).toContainEqual({ role: 'player' });
+    expect(activeMembers).toContainEqual({ role: 'dm' });
+
+    // 4. Idempotent repeat joining with correct password succeeds without duplicating membership
+    const repeatAttempt = await player.rpc('join_room', {
+      p_name: roomName,
+      p_password: 'vault-password',
+    });
+    expect(repeatAttempt.error).toBeNull();
+    expect(repeatAttempt.data).toBe(roomId);
+
+    const { data: repeatMembers } = await player
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId);
+    expect(repeatMembers).toHaveLength(2);
+    expect(repeatMembers.filter((m) => m.role === 'player')).toHaveLength(1);
+  });
+
   it('join_room rejects an unknown room name', async () => {
     const player = await signIn(USERS.player2);
     const { error } = await player.rpc('join_room', {

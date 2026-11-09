@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { getActiveMap } from '../lib/maps.js';
@@ -10,6 +10,7 @@ import {
   assignToken,
   upsertToken,
   removeTokenById,
+  reconcileTokens,
 } from '../lib/tokens.js';
 import { appendRoll, emitRollDice } from '../lib/dice.js';
 import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/characters.js';
@@ -50,7 +51,9 @@ export default function GamePage() {
   const { roomId } = useParams();
 
   const [roomName, setRoomName] = useState('');
-  const [error, setError] = useState(null);
+  const [roomError, setRoomError] = useState(null);
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isDM, setIsDM] = useState(false);
   const [activeMap, setActiveMap] = useState(null);
@@ -67,7 +70,81 @@ export default function GamePage() {
   const [characterLoading, setCharacterLoading] = useState(true);
   const [characterReady, setCharacterReady] = useState(false);
 
-  const { socket } = useRoomSocket(roomId);
+  const syncStateRef = useRef({
+    syncId: 0,
+    inFlight: false,
+    bufferedEvents: [],
+    mapOverride: null,
+  });
+
+  const roomIdRef = useRef(roomId);
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadRoomState = useCallback(async () => {
+    if (!isMountedRef.current || roomIdRef.current !== roomId) {
+      return;
+    }
+
+    const currentSyncId = ++syncStateRef.current.syncId;
+    syncStateRef.current.inFlight = true;
+    syncStateRef.current.bufferedEvents = [];
+    syncStateRef.current.mapOverride = null;
+
+    try {
+      const [snapshotTokens, snapshotMap] = await Promise.all([
+        getRoomTokens(supabase, roomId),
+        getActiveMap(supabase, roomId),
+      ]);
+
+      if (
+        !isMountedRef.current ||
+        roomIdRef.current !== roomId ||
+        syncStateRef.current.syncId !== currentSyncId
+      ) {
+        return;
+      }
+
+      const finalTokens = reconcileTokens(snapshotTokens, syncStateRef.current.bufferedEvents);
+      setTokens(finalTokens);
+
+      if (syncStateRef.current.mapOverride !== null) {
+        setActiveMap(syncStateRef.current.mapOverride);
+      } else {
+        setActiveMap(snapshotMap);
+      }
+      setRecoveryError(null);
+    } catch (syncErr) {
+      if (
+        !isMountedRef.current ||
+        roomIdRef.current !== roomId ||
+        syncStateRef.current.syncId !== currentSyncId
+      ) {
+        return;
+      }
+      setRecoveryError(syncErr.message || 'Failed to load game room state.');
+      console.error('Failed to reload authoritative room state:', syncErr);
+    } finally {
+      if (syncStateRef.current.syncId === currentSyncId) {
+        syncStateRef.current.inFlight = false;
+        syncStateRef.current.bufferedEvents = [];
+        syncStateRef.current.mapOverride = null;
+      }
+    }
+  }, [roomId]);
+
+  const { socket, error: socketError } = useRoomSocket(roomId, {
+    onJoined: loadRoomState,
+  });
 
   const refreshMembers = useCallback(async () => {
     try {
@@ -82,6 +159,7 @@ export default function GamePage() {
     let isMounted = true;
 
     async function loadGameDetails() {
+      setRoomError(null);
       setCharacterLoading(true);
       setCharacterReady(false);
       setCharacterError(null);
@@ -89,16 +167,21 @@ export default function GamePage() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
+        if (!isMounted || roomIdRef.current !== roomId) return;
         if (!user) return;
-        if (isMounted) setCurrentUser(user);
+        setCurrentUser(user);
 
         // Room name only: the uuid is internal and never shown
         try {
           const name = await getRoomName(supabase, roomId);
-          if (isMounted) setRoomName(name);
+          if (!isMounted || roomIdRef.current !== roomId) return;
+          setRoomName(name);
         } catch (loadError) {
-          if (isMounted) setError(loadError.message || 'Unable to load room.');
+          if (!isMounted || roomIdRef.current !== roomId) return;
+          setRoomError(loadError.message || 'Unable to load room.');
         }
+
+        if (!isMounted || roomIdRef.current !== roomId) return;
 
         // Determine user role in this room
         const { data: membership } = await supabase
@@ -107,6 +190,8 @@ export default function GamePage() {
           .eq('room_id', roomId)
           .eq('user_id', user.id)
           .maybeSingle();
+
+        if (!isMounted || roomIdRef.current !== roomId) return;
 
         const isRoomDM = membership?.role === 'dm';
         if (isMounted) {
@@ -147,35 +232,25 @@ export default function GamePage() {
           }
         }
 
-        // Fetch active map
-        const map = await getActiveMap(supabase, roomId);
-        if (isMounted) {
-          setActiveMap(map);
-        }
-
-        // Fetch tokens for this room (#9)
-        try {
-          const loadedTokens = await getRoomTokens(supabase, roomId);
-          if (isMounted) {
-            setTokens(loadedTokens);
-          }
-        } catch (tokErr) {
-          console.error('Failed to load room tokens:', tokErr);
-        }
-
         // Fetch room members (#10)
         try {
           const roomMembers = await getRoomMembers(supabase, roomId);
-          if (isMounted) {
-            setMembers(roomMembers);
-          }
+          if (!isMounted || roomIdRef.current !== roomId) return;
+          setMembers(roomMembers);
         } catch (memberErr) {
+          if (!isMounted || roomIdRef.current !== roomId) return;
           console.error('Failed to load room members:', memberErr);
         }
+
+        if (!isMounted || roomIdRef.current !== roomId) return;
+
+        // Await the initial room snapshot before ending initial loading
+        await loadRoomState();
       } catch (err) {
+        if (!isMounted || roomIdRef.current !== roomId) return;
         console.error('Error loading game page details:', err);
       } finally {
-        if (isMounted) {
+        if (isMounted && roomIdRef.current === roomId) {
           setLoading(false);
           setCharacterLoading(false);
         }
@@ -187,21 +262,30 @@ export default function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [roomId]);
+  }, [roomId, loadRoomState]);
 
   // Subscribe to real-time token events broadcast by other room members
   useEffect(() => {
     if (!socket) return;
 
     const handleRemoteTokenAdded = (token) => {
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenAdded', token });
+      }
       setTokens((prev) => upsertToken(prev, token));
     };
 
     const handleRemoteTokenRemoved = ({ id }) => {
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenRemoved', id });
+      }
       setTokens((prev) => removeTokenById(prev, id));
     };
 
     const handleRemoteTokenUpdated = (token) => {
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenUpdated', token });
+      }
       setTokens((prev) => upsertToken(prev, token));
     };
 
@@ -264,16 +348,26 @@ export default function GamePage() {
   };
 
   const handleMapUploaded = (mapRecord) => {
+    if (syncStateRef.current.inFlight) {
+      syncStateRef.current.mapOverride = mapRecord;
+    }
     setActiveMap(mapRecord);
   };
 
   const handleSelectActiveMap = (mapRecord) => {
+    if (syncStateRef.current.inFlight) {
+      syncStateRef.current.mapOverride = mapRecord;
+    }
     setActiveMap(mapRecord);
   };
 
   const handleAddToken = async (name, color) => {
     try {
+      setActionError(null);
       const created = await addToken(supabase, { roomId, name, color });
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenAdded', token: created });
+      }
       setTokens((prev) => upsertToken(prev, created));
       if (socket?.connected) {
         socket.emit('tokenAdded', { roomId, tokenId: created.id }, (response) => {
@@ -283,14 +377,18 @@ export default function GamePage() {
         });
       }
     } catch (err) {
-      setError(err.message || 'Failed to add token.');
+      setActionError(err.message || 'Failed to add token.');
       throw err;
     }
   };
 
   const handleRemoveToken = async (token) => {
     try {
+      setActionError(null);
       await removeToken(supabase, token.id);
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenRemoved', id: token.id });
+      }
       setTokens((prev) => removeTokenById(prev, token.id));
       if (socket?.connected) {
         socket.emit('tokenRemoved', { roomId, tokenId: token.id }, (response) => {
@@ -300,14 +398,18 @@ export default function GamePage() {
         });
       }
     } catch (err) {
-      setError(err.message || 'Failed to remove token.');
+      setActionError(err.message || 'Failed to remove token.');
       throw err;
     }
   };
 
   const handleAssignToken = async (token, userId) => {
     try {
+      setActionError(null);
       const updated = await assignToken(supabase, { tokenId: token.id, userId });
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenUpdated', token: updated });
+      }
       setTokens((prev) => upsertToken(prev, updated));
       if (socket?.connected) {
         socket.emit('tokenUpdated', { roomId, tokenId: token.id }, (response) => {
@@ -317,19 +419,21 @@ export default function GamePage() {
         });
       }
     } catch (err) {
-      setError(err.message || 'Failed to assign token.');
+      setActionError(err.message || 'Failed to assign token.');
       throw err;
     }
   };
+
+  const displayError = actionError || recoveryError || socketError || roomError;
 
   return (
     <div className="game-screen">
       {/* Top Header: Room Name */}
       <header className="game-top-bar">
         <h1 className="game-room-name">{roomName}</h1>
-        {error && (
+        {displayError && (
           <p className="auth-error" role="alert">
-            {error}
+            {displayError}
           </p>
         )}
       </header>

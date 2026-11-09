@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTokenEvents } from '../src/sockets/tokenSocket.js';
 
 function createMockSocket({
@@ -17,7 +17,60 @@ function createMockSocket({
   return socket;
 }
 
+function createMockSupabaseClient({
+  role = 'dm',
+  memberError = null,
+  tokenRow = null,
+  tokenError = null,
+} = {}) {
+  return {
+    from: vi.fn((table) => {
+      if (table === 'room_members') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: role ? { role } : null,
+                  error: memberError,
+                }),
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === 'tokens') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: tokenRow,
+                  error: tokenError,
+                }),
+              })),
+            })),
+          })),
+        };
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          })),
+        })),
+      };
+    }),
+  };
+}
+
 describe('token socket events', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('rejects an invalid payload for tokenAdded and tokenRemoved', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
@@ -56,21 +109,7 @@ describe('token socket events', () => {
   it('rejects when user is not a DM in the room', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const memberClient = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'player' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const memberClient = createMockSupabaseClient({ role: 'player' });
 
     registerTokenEvents(io, { createUserClient: () => memberClient });
     io.emit('connection', socket);
@@ -92,32 +131,7 @@ describe('token socket events', () => {
   it('tokenAdded: rejects when token is missing from the database', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'dm', tokenRow: null });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);
@@ -149,32 +163,9 @@ describe('token socket events', () => {
       y: 0,
     };
 
-    const createUserClient = vi.fn(() => ({
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: tokenDbRow, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    }));
+    const createUserClient = vi.fn(() =>
+      createMockSupabaseClient({ role: 'dm', tokenRow: tokenDbRow }),
+    );
 
     registerTokenEvents(io, { createUserClient });
     io.emit('connection', socket);
@@ -204,32 +195,7 @@ describe('token socket events', () => {
   it('tokenRemoved: rejects when token still exists in database', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'token-1' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'dm', tokenRow: { id: 'token-1' } });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);
@@ -252,32 +218,7 @@ describe('token socket events', () => {
   it('tokenRemoved: broadcasts { id } when token row is gone and acknowledges success', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'dm', tokenRow: null });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);
@@ -298,21 +239,7 @@ describe('token socket events', () => {
   it('tokenUpdated: rejects when user is not a DM in the room', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'player' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'player' });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);
@@ -335,32 +262,7 @@ describe('token socket events', () => {
   it('tokenUpdated: rejects when token is missing from the database', async () => {
     const io = new EventEmitter();
     const socket = createMockSocket();
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'dm', tokenRow: null });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);
@@ -393,32 +295,7 @@ describe('token socket events', () => {
       assigned_to: 'player-1',
     };
 
-    const client = {
-      from: vi.fn((table) => {
-        if (table === 'room_members') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'dm' }, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-        if (table === 'tokens') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: tokenDbRow, error: null }),
-                })),
-              })),
-            })),
-          };
-        }
-      }),
-    };
+    const client = createMockSupabaseClient({ role: 'dm', tokenRow: tokenDbRow });
 
     registerTokenEvents(io, { createUserClient: () => client });
     io.emit('connection', socket);

@@ -86,7 +86,11 @@ export async function getActiveMap(supabase, roomId) {
     .eq('id', roomId)
     .single();
 
-  if (roomError || !room?.active_map_id) {
+  if (roomError) {
+    throw roomError;
+  }
+
+  if (!room?.active_map_id) {
     return null;
   }
 
@@ -97,7 +101,7 @@ export async function getActiveMap(supabase, roomId) {
     .single();
 
   if (mapError) {
-    return null;
+    throw mapError;
   }
 
   return map;

@@ -21,7 +21,7 @@ export default function Token({ token, cellSize = 50 }) {
   const isAssigned = Boolean(token.assigned_to);
 
   return (
-    <Group x={pixelX} y={pixelY} listening={false}>
+    <Group name="token" x={pixelX} y={pixelY} listening={true}>
       {/* Token Circle: dashed when unassigned, solid when assigned */}
       <Circle
         radius={radius}
@@ -29,7 +29,7 @@ export default function Token({ token, cellSize = 50 }) {
         stroke="#2b2321"
         strokeWidth={2}
         dash={isAssigned ? undefined : [4, 3]}
-        listening={false}
+        listening={true}
       />
       {/* Token Name Label - Readable on light or dark maps via stroke outline */}
       <Text
@@ -45,7 +45,7 @@ export default function Token({ token, cellSize = 50 }) {
         stroke="#000000"
         strokeWidth={3}
         fillAfterStrokeEnabled={true}
-        listening={false}
+        listening={true}
       />
     </Group>
   );
