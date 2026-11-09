@@ -12,10 +12,38 @@ import {
   removeTokenById,
   reconcileTokens,
 } from '../lib/tokens.js';
+import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/characters.js';
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
 import DMControls from '../components/DMControls.jsx';
+import CharacterCard from '../components/CharacterCard.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
+
+const CHARACTER_VALIDATION_ERRORS = new Set([
+  'Character name is required.',
+  'Character name must be between 1 and 40 characters.',
+  'Max HP must be an integer of at least 1.',
+  'AC must be an integer of at least 0.',
+]);
+
+/**
+ * User-facing character errors. Validation copy is safe to repeat.
+ * Database failures often embed uuids, so those stay off the page.
+ * @param {unknown} error
+ * @param {string} fallback
+ * @returns {string}
+ */
+function toCharacterError(error, fallback) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (CHARACTER_VALIDATION_ERRORS.has(message)) return message;
+  if (/already has a character/i.test(message)) {
+    return 'You already have a character in this room.';
+  }
+  if (/not a member of room/i.test(message)) {
+    return 'You must be a member of this room to create a character.';
+  }
+  return fallback;
+}
 
 export default function GamePage() {
   const { roomId } = useParams();
@@ -33,6 +61,11 @@ export default function GamePage() {
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
   const [members, setMembers] = useState([]);
+  const [character, setCharacter] = useState(null);
+  const [characters, setCharacters] = useState([]);
+  const [characterError, setCharacterError] = useState(null);
+  const [characterLoading, setCharacterLoading] = useState(true);
+  const [characterReady, setCharacterReady] = useState(false);
 
   const syncStateRef = useRef({
     syncId: 0,
@@ -124,6 +157,9 @@ export default function GamePage() {
 
     async function loadGameDetails() {
       setRoomError(null);
+      setCharacterLoading(true);
+      setCharacterReady(false);
+      setCharacterError(null);
       try {
         const {
           data: { user },
@@ -154,8 +190,43 @@ export default function GamePage() {
 
         if (!isMounted || roomIdRef.current !== roomId) return;
 
-        if (membership?.role === 'dm') {
-          setIsDM(true);
+        const isRoomDM = membership?.role === 'dm';
+        if (isMounted) {
+          setIsDM(isRoomDM);
+        }
+
+        try {
+          if (isRoomDM) {
+            const roomCharacters = await getRoomCharacters(supabase, roomId);
+            if (isMounted) {
+              const own =
+                roomCharacters.find((item) => item.user_id === user.id) ??
+                roomCharacters[0] ??
+                null;
+              setCharacters(roomCharacters);
+              setCharacter(own);
+              setCharacterReady(true);
+            }
+          } else {
+            const mine = await getMyCharacter(supabase, roomId, user.id);
+            if (isMounted) {
+              setCharacter(mine);
+              setCharacters([]);
+              setCharacterReady(true);
+            }
+          }
+        } catch (characterErr) {
+          console.error('Failed to load characters.', characterErr?.code ?? '');
+          if (isMounted) {
+            setCharacter(null);
+            setCharacters([]);
+            setCharacterReady(false);
+            setCharacterError('Unable to load characters.');
+          }
+        } finally {
+          if (isMounted) {
+            setCharacterLoading(false);
+          }
         }
 
         // Fetch room members (#10)
@@ -178,6 +249,7 @@ export default function GamePage() {
       } finally {
         if (isMounted && roomIdRef.current === roomId) {
           setLoading(false);
+          setCharacterLoading(false);
         }
       }
     }
@@ -224,6 +296,34 @@ export default function GamePage() {
       socket.off('tokenUpdated', handleRemoteTokenUpdated);
     };
   }, [socket]);
+
+  const handleSelectCharacter = (next) => {
+    setCharacter(next);
+    setCharacterError(null);
+  };
+
+  const handleCreateCharacter = async ({ name, maxHp, ac }) => {
+    if (!currentUser) {
+      setCharacterError('Unable to create character.');
+      return;
+    }
+
+    try {
+      const created = await createCharacter(supabase, {
+        roomId,
+        userId: currentUser.id,
+        name,
+        maxHp,
+        ac,
+      });
+      setCharacter(created);
+      setCharacters((prev) => [...prev, created]);
+      setCharacterError(null);
+    } catch (err) {
+      console.error('Failed to create character.', err?.code ?? '');
+      setCharacterError(toCharacterError(err, 'Unable to create character.'));
+    }
+  };
 
   const handleMapUploaded = (mapRecord) => {
     if (syncStateRef.current.inFlight) {
@@ -316,8 +416,34 @@ export default function GamePage() {
         )}
       </header>
 
-      {/* Main Layout: Board in center, Chat with DM tab on right */}
+      {/* Main Layout: Character card on the left, board in the center, chat on the right */}
       <div className="game-main-area">
+        <aside className="character-sidebar" aria-label="Character card">
+          <div className="character-sidebar-header">
+            <span className="chat-tab-title">Character</span>
+          </div>
+          <div className="character-sidebar-body">
+            {characterError && (
+              <p className="auth-error" role="alert">
+                {characterError}
+              </p>
+            )}
+            {characterLoading ? (
+              <p className="character-card-loading">Loading character...</p>
+            ) : (
+              characterReady && (
+                <CharacterCard
+                  character={character}
+                  characters={characters}
+                  isDM={isDM}
+                  onCreate={handleCreateCharacter}
+                  onSelect={handleSelectCharacter}
+                />
+              )
+            )}
+          </div>
+        </aside>
+
         <main className="game-viewport">
           {loading ? (
             <p className="game-loading-text">Loading game room...</p>
