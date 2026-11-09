@@ -15,12 +15,6 @@ export async function createRoom(client, { roomName, password }) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-export function validateJoinDetails({ roomName, password }) {
-  if (!roomName?.trim()) return 'Room name is required.';
-  if (!password?.trim()) return 'Password is required.';
-  return null;
-}
-
 export async function joinRoom(client, { roomName, password }) {
   const { data, error } = await client.rpc('join_room', {
     p_name: roomName.trim(),

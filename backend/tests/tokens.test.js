@@ -47,6 +47,29 @@ describe('tokens RLS + move_token', () => {
     expect(error).not.toBeNull();
   });
 
+  it('an outsider cannot move an unassigned token', async () => {
+    const { data: created, error: insErr } = await dm
+      .from('tokens')
+      .insert({ room_id: TEST_ROOM.id, name: 'Unclaimed', color: '#888888', x: 0, y: 0 })
+      .select()
+      .single();
+    expect(insErr).toBeNull();
+    expect(created.assigned_to).toBeNull();
+
+    const { error } = await outsider.rpc('move_token', {
+      p_token_id: created.id,
+      p_x: 7,
+      p_y: 7,
+    });
+    expect(error).not.toBeNull();
+
+    const { data: check } = await dm.from('tokens').select('x,y').eq('id', created.id).single();
+    expect(check.x).toBe(0);
+    expect(check.y).toBe(0);
+
+    await dm.from('tokens').delete().eq('id', created.id);
+  });
+
   it('a player has no direct update path (cannot rename a token)', async () => {
     const { data } = await player1
       .from('tokens')

@@ -129,9 +129,19 @@ export async function getRoomMaps(supabase, roomId) {
  * @param {{ roomId: string, mapId: string }} params
  */
 export async function setActiveMap(supabase, { roomId, mapId }) {
-  const { error } = await supabase.from('rooms').update({ active_map_id: mapId }).eq('id', roomId);
+  const { data, error } = await supabase.rpc('set_active_map', {
+    p_room_id: roomId,
+    p_map_id: mapId,
+  });
 
   if (error) {
     throw error;
   }
+
+  const room = Array.isArray(data) ? data[0] : data;
+  if (!room) {
+    throw new Error('Active map was not updated.');
+  }
+
+  return room;
 }

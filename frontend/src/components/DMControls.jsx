@@ -30,9 +30,8 @@ function getSavedLayout() {
 }
 
 /**
- * DMControls component (#7).
+ * DMControls component.
  * Floating, draggable, resizable panel with tabs.
- * Maps tab displays upload target at the top and a scrollable list of uploaded maps below.
  */
 export default function DMControls({
   supabase,
@@ -78,24 +77,22 @@ export default function DMControls({
   useEffect(() => {
     let ignore = false;
     if (isOpen && activeTab === 'maps' && roomId && supabase) {
-      Promise.resolve().then(() => {
-        if (!ignore) {
-          setLoadingMaps(true);
-        }
-      });
-      getRoomMaps(supabase, roomId)
-        .then((maps) => {
+      const loadMaps = async () => {
+        setLoadingMaps(true);
+        try {
+          const maps = await getRoomMaps(supabase, roomId);
           if (!ignore) {
             setMapsList(maps);
             setLoadingMaps(false);
           }
-        })
-        .catch((err) => {
+        } catch (err) {
           if (!ignore) {
             console.error('Failed to load room maps:', err);
             setLoadingMaps(false);
           }
-        });
+        }
+      };
+      loadMaps();
     }
     return () => {
       ignore = true;
@@ -299,7 +296,6 @@ export default function DMControls({
         </button>
       </div>
 
-      {/* Tabs navigation: Users, Stats, Maps */}
       <nav className="dm-tabs" aria-label="DM Control Tabs">
         {TABS.map((tab) => (
           <button
@@ -391,9 +387,11 @@ export default function DMControls({
                 max="150"
                 step="5"
                 value={gridCellSize}
-                onChange={(e) =>
-                  onChangeGridCellSize && onChangeGridCellSize(Number(e.target.value))
-                }
+                onChange={(e) => {
+                  if (onChangeGridCellSize) {
+                    onChangeGridCellSize(Number(e.target.value));
+                  }
+                }}
                 disabled={!showGrid}
                 className="dm-grid-slider"
                 aria-label="Grid cell size in pixels"
@@ -499,7 +497,9 @@ export default function DMControls({
                           value={token.assigned_to ?? ''}
                           onChange={(e) => {
                             const val = e.target.value || null;
-                            onAssignToken?.(token, val);
+                            if (onAssignToken) {
+                              onAssignToken(token, val);
+                            }
                           }}
                         >
                           <option value="">Unassigned</option>
@@ -515,7 +515,11 @@ export default function DMControls({
                           type="button"
                           className="dm-token-remove-btn"
                           aria-label={`Remove ${token.name}`}
-                          onClick={() => onRemoveToken && onRemoveToken(token)}
+                          onClick={() => {
+                            if (onRemoveToken) {
+                              onRemoveToken(token);
+                            }
+                          }}
                         >
                           Remove
                         </button>

@@ -1,12 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createRoom,
-  getRoomMembers,
-  getRoomName,
-  joinRoom,
-  validateJoinDetails,
-  validateRoomDetails,
-} from './rooms.js';
+import { createRoom, getRoomMembers, getRoomName, joinRoom, validateRoomDetails } from './rooms.js';
 
 describe('validateRoomDetails', () => {
   it('rejects an empty room name', () => {
@@ -48,20 +41,6 @@ describe('createRoom', () => {
     await expect(createRoom(client, { roomName: 'Dungeon', password: 'secret' })).rejects.toThrow(
       'Room could not be created',
     );
-  });
-});
-
-describe('validateJoinDetails', () => {
-  it('rejects an empty room name', () => {
-    expect(validateJoinDetails({ roomName: '  ', password: 'secret' })).toMatch(/room name/i);
-  });
-
-  it('rejects a blank password', () => {
-    expect(validateJoinDetails({ roomName: 'Dungeon', password: ' ' })).toMatch(/password/i);
-  });
-
-  it('accepts a room name and password', () => {
-    expect(validateJoinDetails({ roomName: 'Dungeon', password: 'secret' })).toBeNull();
   });
 });
 

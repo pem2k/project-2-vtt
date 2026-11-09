@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { createRoom, joinRoom, validateJoinDetails, validateRoomDetails } from '../lib/rooms.js';
+import { createRoom, joinRoom, validateRoomDetails } from '../lib/rooms.js';
 import { connectSocket, joinRoomChannel } from '../lib/socket.js';
 import { supabase } from '../lib/supabaseClient.js';
 
@@ -36,7 +36,7 @@ export default function HostJoinPage() {
 
   async function handleJoinRoom(event) {
     event.preventDefault();
-    const validationError = validateJoinDetails({ roomName, password });
+    const validationError = validateRoomDetails({ roomName, password });
     if (validationError) {
       setError(validationError);
       return;

@@ -78,8 +78,6 @@ describe('Board component', () => {
       { id: 't2', name: 'Goblin Scout', color: '#E6194B', x: 5, y: 5, assigned_to: null },
     ];
 
-    const members = [{ user_id: 'user-p1', role: 'player', display_name: 'Player One' }];
-
     const markup = renderToStaticMarkup(
       <Board
         activeMapUrl="https://example.com/map.png"
@@ -87,7 +85,6 @@ describe('Board component', () => {
         height={600}
         cellSize={50}
         tokens={tokens}
-        members={members}
       />,
     );
 
