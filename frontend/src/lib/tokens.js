@@ -64,6 +64,30 @@ export function removeTokenById(list = [], id) {
 }
 
 /**
+ * Reconciles an authoritative tokens snapshot with socket events
+ * that arrived while the snapshot request was in flight.
+ *
+ * @param {Array} snapshotTokens
+ * @param {Array<{ type: string, token?: object, id?: string }>} pendingEvents
+ * @returns {Array} Reconciled tokens list
+ */
+export function reconcileTokens(snapshotTokens = [], pendingEvents = []) {
+  let result = [...snapshotTokens];
+  for (const event of pendingEvents) {
+    if (event.type === 'tokenAdded' || event.type === 'tokenUpdated') {
+      if (event.token) {
+        result = upsertToken(result, event.token);
+      }
+    } else if (event.type === 'tokenRemoved') {
+      if (event.id) {
+        result = removeTokenById(result, event.id);
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * Fetches tokens for a room ordered by created_at ascending.
  * @param {object} supabase
  * @param {string} roomId
