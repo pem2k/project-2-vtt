@@ -11,7 +11,7 @@ function buttonTags(markup) {
 
 describe('DicePanel', () => {
   it('shows a button with an accessible name for each standard die', () => {
-    const markup = renderToStaticMarkup(<DicePanel rolls={[]} onRoll={vi.fn()} disabled={false} />);
+    const markup = renderToStaticMarkup(<DicePanel onRoll={vi.fn()} disabled={false} />);
 
     const buttons = buttonTags(markup);
     expect(buttons).toHaveLength(DICE.length);
@@ -25,32 +25,23 @@ describe('DicePanel', () => {
     }
   });
 
-  it('shows each roll as "<name> rolled <die>: <result>"', () => {
+  it('does not render roll results', () => {
     const markup = renderToStaticMarkup(
-      <DicePanel
-        rolls={[
-          { playerName: 'Aria', die: 'd20', result: 17 },
-          { playerName: 'Borin', die: 'd8', result: 4 },
-        ]}
-        onRoll={vi.fn()}
-      />,
+      <DicePanel onRoll={vi.fn()} rolls={[{ playerName: 'Aria', die: 'd20', result: 17 }]} />,
     );
 
-    expect(markup).toContain('Aria rolled d20: 17');
-    expect(markup).toContain('Borin rolled d8: 4');
-    expect(markup).toMatch(/<(ul|ol)\b/);
+    expect(markup).not.toContain('rolled');
+    expect(markup).not.toContain('Aria rolled d20: 17');
+  });
+
+  it('does not render an empty roll message', () => {
+    const markup = renderToStaticMarkup(<DicePanel onRoll={vi.fn()} rolls={[]} />);
+
     expect(markup).not.toContain('No rolls yet.');
   });
 
-  it('shows an empty-state message when there are no rolls', () => {
-    const markup = renderToStaticMarkup(<DicePanel rolls={[]} onRoll={vi.fn()} />);
-
-    expect(markup).toContain('No rolls yet.');
-    expect(markup).not.toContain('rolled');
-  });
-
   it('disables every die button when disabled is set', () => {
-    const markup = renderToStaticMarkup(<DicePanel rolls={[]} onRoll={vi.fn()} disabled />);
+    const markup = renderToStaticMarkup(<DicePanel onRoll={vi.fn()} disabled />);
 
     const buttons = buttonTags(markup);
     expect(buttons).toHaveLength(DICE.length);
