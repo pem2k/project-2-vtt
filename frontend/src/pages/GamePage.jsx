@@ -11,7 +11,9 @@ import {
   upsertToken,
   removeTokenById,
 } from '../lib/tokens.js';
+import { appendRoll, emitRollDice } from '../lib/dice.js';
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
+import DicePanel from '../components/DicePanel.jsx';
 import DMControls from '../components/DMControls.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
@@ -30,6 +32,7 @@ export default function GamePage() {
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
   const [members, setMembers] = useState([]);
+  const [rolls, setRolls] = useState([]);
 
   const { socket } = useRoomSocket(roomId);
 
@@ -141,6 +144,25 @@ export default function GamePage() {
     };
   }, [socket]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDiceResult = (roll) => {
+      if (!roll || roll.roomId !== roomId) return;
+      setRolls((prev) => appendRoll(prev, roll));
+    };
+
+    socket.on('diceResult', handleDiceResult);
+    return () => {
+      socket.off('diceResult', handleDiceResult);
+    };
+  }, [socket, roomId]);
+
+  const handleRoll = (die) => {
+    if (!socket?.connected) return;
+    emitRollDice(socket, roomId, die);
+  };
+
   const handleMapUploaded = (mapRecord) => {
     setActiveMap(mapRecord);
   };
@@ -229,6 +251,7 @@ export default function GamePage() {
               />
             </div>
           )}
+          <DicePanel rolls={rolls} onRoll={handleRoll} disabled={!socket?.connected} />
         </main>
 
         {/* Chat panel on the right side with DM Controls toggle tab */}
