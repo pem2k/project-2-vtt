@@ -48,6 +48,40 @@ async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
   return { ok: true, client: memberResult.client };
 }
 
+async function verifyTokenPresent(client, roomId, tokenId) {
+  const { data: tokenRow, error: tokenError } = await client
+    .from('tokens')
+    .select('*')
+    .eq('id', tokenId)
+    .eq('room_id', roomId)
+    .maybeSingle();
+
+  if (tokenError || !tokenRow) {
+    return { ok: false, error: 'Token not found.' };
+  }
+
+  return { ok: true, payload: tokenRow };
+}
+
+async function verifyTokenRemoved(client, roomId, tokenId) {
+  const { data: existingToken, error: checkError } = await client
+    .from('tokens')
+    .select('id')
+    .eq('id', tokenId)
+    .eq('room_id', roomId)
+    .maybeSingle();
+
+  if (checkError) {
+    return { ok: false, error: checkError.message };
+  }
+
+  if (existingToken) {
+    return { ok: false, error: 'Token still exists.' };
+  }
+
+  return { ok: true, payload: { id: tokenId } };
+}
+
 /**
  * Registers token events for the Socket.IO server.
  * DM emits 'tokenAdded', 'tokenRemoved', or 'tokenUpdated' after persistent write;
@@ -58,119 +92,40 @@ async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
  * @param {Function} [options.createUserClient]
  */
 export function registerTokenEvents(io, { createUserClient = createClient } = {}) {
+  function handleTokenEvent(socket, eventName, verifyAndBuildPayload) {
+    socket.on(eventName, async (payload, acknowledge = () => {}) => {
+      const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
+      try {
+        const valid = validateTokenPayload(socket, payload);
+        if (!valid.ok) {
+          ack({ ok: false, error: valid.error });
+          return;
+        }
+
+        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
+        if (!authz.ok) {
+          ack({ ok: false, error: authz.error });
+          return;
+        }
+
+        const verified = await verifyAndBuildPayload(authz.client, valid.roomId, valid.tokenId);
+        if (!verified.ok) {
+          ack({ ok: false, error: verified.error });
+          return;
+        }
+
+        socket.to(valid.roomId).emit(eventName, verified.payload);
+        ack({ ok: true });
+      } catch (error) {
+        ack({ ok: false, error: error.message || `Unable to process ${eventName}.` });
+      }
+    });
+  }
+
   io.on('connection', (socket) => {
-    socket.on('tokenAdded', async (payload, acknowledge = () => {}) => {
-      const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
-      try {
-        const valid = validateTokenPayload(socket, payload);
-        if (!valid.ok) {
-          ack({ ok: false, error: valid.error });
-          return;
-        }
-
-        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
-        if (!authz.ok) {
-          ack({ ok: false, error: authz.error });
-          return;
-        }
-
-        const { client } = authz;
-        const { roomId, tokenId } = valid;
-        const { data: tokenRow, error: tokenError } = await client
-          .from('tokens')
-          .select('*')
-          .eq('id', tokenId)
-          .eq('room_id', roomId)
-          .maybeSingle();
-
-        if (tokenError || !tokenRow) {
-          ack({ ok: false, error: 'Token not found.' });
-          return;
-        }
-
-        socket.to(roomId).emit('tokenAdded', tokenRow);
-        ack({ ok: true });
-      } catch (error) {
-        ack({ ok: false, error: error.message || 'Unable to process tokenAdded.' });
-      }
-    });
-
-    socket.on('tokenRemoved', async (payload, acknowledge = () => {}) => {
-      const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
-      try {
-        const valid = validateTokenPayload(socket, payload);
-        if (!valid.ok) {
-          ack({ ok: false, error: valid.error });
-          return;
-        }
-
-        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
-        if (!authz.ok) {
-          ack({ ok: false, error: authz.error });
-          return;
-        }
-
-        const { client } = authz;
-        const { roomId, tokenId } = valid;
-        const { data: existingToken, error: checkError } = await client
-          .from('tokens')
-          .select('id')
-          .eq('id', tokenId)
-          .eq('room_id', roomId)
-          .maybeSingle();
-
-        if (checkError) {
-          ack({ ok: false, error: checkError.message });
-          return;
-        }
-
-        if (existingToken) {
-          ack({ ok: false, error: 'Token still exists.' });
-          return;
-        }
-
-        socket.to(roomId).emit('tokenRemoved', { id: tokenId });
-        ack({ ok: true });
-      } catch (error) {
-        ack({ ok: false, error: error.message || 'Unable to process tokenRemoved.' });
-      }
-    });
-
-    socket.on('tokenUpdated', async (payload, acknowledge = () => {}) => {
-      const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
-      try {
-        const valid = validateTokenPayload(socket, payload);
-        if (!valid.ok) {
-          ack({ ok: false, error: valid.error });
-          return;
-        }
-
-        const authz = await authorizeDmTokenEvent(socket, valid.roomId, createUserClient);
-        if (!authz.ok) {
-          ack({ ok: false, error: authz.error });
-          return;
-        }
-
-        const { client } = authz;
-        const { roomId, tokenId } = valid;
-        const { data: tokenRow, error: tokenError } = await client
-          .from('tokens')
-          .select('*')
-          .eq('id', tokenId)
-          .eq('room_id', roomId)
-          .maybeSingle();
-
-        if (tokenError || !tokenRow) {
-          ack({ ok: false, error: 'Token not found.' });
-          return;
-        }
-
-        socket.to(roomId).emit('tokenUpdated', tokenRow);
-        ack({ ok: true });
-      } catch (error) {
-        ack({ ok: false, error: error.message || 'Unable to process tokenUpdated.' });
-      }
-    });
+    handleTokenEvent(socket, 'tokenAdded', verifyTokenPresent);
+    handleTokenEvent(socket, 'tokenRemoved', verifyTokenRemoved);
+    handleTokenEvent(socket, 'tokenUpdated', verifyTokenPresent);
 
     socket.on('moveToken', async (payload, acknowledge = () => {}) => {
       const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
