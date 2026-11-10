@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { formatRollMessage, parseRollCommand } from '../lib/dice.js';
 
 /**
  * ChatPanel component.
@@ -13,6 +14,7 @@ export default function ChatPanel({
   isDMModalOpen,
   onToggleDMControls,
   rolls = [],
+  onRoll,
 }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -36,6 +38,15 @@ export default function ChatPanel({
     e.preventDefault();
     const trimmed = inputText.trim();
     if (!trimmed) return;
+
+    const command = parseRollCommand(trimmed);
+    if (command.isCommand) {
+      if (command.notation && typeof onRoll === 'function') {
+        onRoll(command.notation);
+      }
+      setInputText('');
+      return;
+    }
 
     const newMsg = {
       id: crypto.randomUUID(),
@@ -73,7 +84,7 @@ export default function ChatPanel({
           timeline.map((entry) =>
             entry.kind === 'roll' ? (
               <div key={entry.roll.id} className="chat-roll-row">
-                {`${entry.roll.playerName} rolled ${entry.roll.die}: ${entry.roll.result}`}
+                {formatRollMessage(entry.roll)}
               </div>
             ) : (
               <div key={entry.message.id} className="chat-message-row">
