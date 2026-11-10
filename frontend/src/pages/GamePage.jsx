@@ -8,6 +8,8 @@ import {
   addToken,
   removeToken,
   assignToken,
+  moveToken,
+  emitMoveToken,
   upsertToken,
   removeTokenById,
   reconcileTokens,
@@ -79,6 +81,21 @@ export default function GamePage() {
   const [showGrid, setShowGrid] = useState(true);
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
+  const [visitState, setVisitState] = useState(() => ({
+    roomId,
+    visitId: 1,
+    pendingTokenIds: new Set(),
+  }));
+
+  if (visitState.roomId !== roomId) {
+    setVisitState({
+      roomId,
+      visitId: visitState.visitId + 1,
+      pendingTokenIds: new Set(),
+    });
+  }
+
+  const pendingTokenIds = visitState.pendingTokenIds;
   const [members, setMembers] = useState([]);
   const [rolls, setRolls] = useState([]);
   const [character, setCharacter] = useState(null);
@@ -94,10 +111,21 @@ export default function GamePage() {
     mapOverride: null,
   });
 
+  const tokensRef = useRef(tokens);
+  useEffect(() => {
+    tokensRef.current = tokens;
+  }, [tokens]);
+
+  const pendingMovesRef = useRef(new Map());
+  const moveOpCounterRef = useRef(0);
+  const roomVisitRef = useRef(1);
   const roomIdRef = useRef(roomId);
+
   useEffect(() => {
     roomIdRef.current = roomId;
-  }, [roomId]);
+    roomVisitRef.current = visitState.visitId;
+    pendingMovesRef.current.clear();
+  }, [roomId, visitState.visitId]);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -228,7 +256,11 @@ export default function GamePage() {
     return Promise.all([loadRoomState(), loadCharacters()]);
   }, [loadRoomState, loadCharacters]);
 
-  const { socket, error: socketError } = useRoomSocket(roomId, {
+  const {
+    socket,
+    isReady: isSocketReady,
+    error: socketError,
+  } = useRoomSocket(roomId, {
     onJoined: handleJoined,
   });
 
@@ -356,14 +388,27 @@ export default function GamePage() {
       setTokens((prev) => upsertToken(prev, token));
     };
 
+    const handleRemoteTokenMoved = (token) => {
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({ type: 'tokenMoved', token });
+      }
+      setTokens((prev) => {
+        const next = upsertToken(prev, token);
+        tokensRef.current = next;
+        return next;
+      });
+    };
+
     socket.on('tokenAdded', handleRemoteTokenAdded);
     socket.on('tokenRemoved', handleRemoteTokenRemoved);
     socket.on('tokenUpdated', handleRemoteTokenUpdated);
+    socket.on('tokenMoved', handleRemoteTokenMoved);
 
     return () => {
       socket.off('tokenAdded', handleRemoteTokenAdded);
       socket.off('tokenRemoved', handleRemoteTokenRemoved);
       socket.off('tokenUpdated', handleRemoteTokenUpdated);
+      socket.off('tokenMoved', handleRemoteTokenMoved);
     };
   }, [socket]);
 
@@ -499,6 +544,90 @@ export default function GamePage() {
     }
   };
 
+  const handleMoveToken = async (token, newX, newY, revert) => {
+    if (!token?.id) return;
+    const initiatingRoomId = roomId;
+    const initiatingVisitId = roomVisitRef.current;
+
+    if (pendingMovesRef.current.has(token.id)) {
+      return;
+    }
+
+    const opId = ++moveOpCounterRef.current;
+    pendingMovesRef.current.set(token.id, { visitId: initiatingVisitId, opId });
+    setVisitState((prev) => {
+      if (prev.roomId !== initiatingRoomId || prev.visitId !== initiatingVisitId) return prev;
+      const nextIds = new Set(prev.pendingTokenIds);
+      nextIds.add(token.id);
+      return { ...prev, pendingTokenIds: nextIds };
+    });
+
+    const isCurrentOp = () =>
+      isMountedRef.current &&
+      roomIdRef.current === initiatingRoomId &&
+      roomVisitRef.current === initiatingVisitId &&
+      pendingMovesRef.current.get(token.id)?.opId === opId;
+
+    const clearPendingOperation = () => {
+      pendingMovesRef.current.delete(token.id);
+      setVisitState((prev) => {
+        if (
+          prev.roomId !== initiatingRoomId ||
+          prev.visitId !== initiatingVisitId ||
+          !prev.pendingTokenIds.has(token.id)
+        ) {
+          return prev;
+        }
+        const nextIds = new Set(prev.pendingTokenIds);
+        nextIds.delete(token.id);
+        return { ...prev, pendingTokenIds: nextIds };
+      });
+    };
+
+    let updated;
+    try {
+      setActionError(null);
+      updated = await moveToken(supabase, { tokenId: token.id, x: newX, y: newY });
+    } catch (err) {
+      if (isCurrentOp()) {
+        const latest = tokensRef.current?.find((t) => t.id === token.id) || token;
+        revert?.(latest);
+        setActionError(err.message || 'Failed to move token.');
+        clearPendingOperation();
+      }
+      return;
+    }
+
+    if (!isCurrentOp()) {
+      return;
+    }
+
+    if (syncStateRef.current.inFlight) {
+      syncStateRef.current.bufferedEvents.push({ type: 'tokenMoved', token: updated });
+    }
+    setTokens((prev) => {
+      const next = upsertToken(prev, updated);
+      tokensRef.current = next;
+      return next;
+    });
+
+    clearPendingOperation();
+
+    try {
+      await emitMoveToken(socket, { roomId: initiatingRoomId, tokenId: token.id });
+    } catch (syncErr) {
+      if (
+        !isMountedRef.current ||
+        roomIdRef.current !== initiatingRoomId ||
+        roomVisitRef.current !== initiatingVisitId
+      ) {
+        return;
+      }
+      console.warn('Socket tokenMoved sync failed:', syncErr);
+      setActionError('Token position saved, but failed to sync move with other players.');
+    }
+  };
+
   const displayError = actionError || recoveryError || socketError || roomError;
 
   return (
@@ -553,6 +682,11 @@ export default function GamePage() {
                 showGrid={showGrid}
                 cellSize={gridCellSize}
                 tokens={tokens}
+                currentUserId={currentUser?.id}
+                isDm={isDM}
+                isSocketReady={isSocketReady}
+                pendingTokenIds={pendingTokenIds}
+                onMoveToken={handleMoveToken}
               />
             </div>
           )}

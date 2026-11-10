@@ -62,6 +62,11 @@ export default function Board({
   cellSize = 50,
   showGrid = true,
   tokens = [],
+  currentUserId,
+  isDm = false,
+  isSocketReady = false,
+  pendingTokenIds,
+  onMoveToken,
 }) {
   const logicalMapWidth = mapWidth ?? width ?? 800;
   const logicalMapHeight = mapHeight ?? height ?? 600;
@@ -248,7 +253,16 @@ export default function Board({
           {/* Layer 3: Tokens (Issue #9, #10) */}
           <Layer>
             {tokens.map((token) => (
-              <Token key={token.id} token={token} cellSize={cellSize} />
+              <Token
+                key={token.id}
+                token={token}
+                cellSize={cellSize}
+                currentUserId={currentUserId}
+                isDm={isDm}
+                isSocketReady={isSocketReady}
+                isPending={pendingTokenIds?.has(token.id) ?? false}
+                onMoveToken={onMoveToken}
+              />
             ))}
           </Layer>
         </Stage>
