@@ -47,6 +47,23 @@ function toCharacterError(error, fallback) {
   return fallback;
 }
 
+/**
+ * DM card to show after a character list load.
+ * Keeps the current selection when that row is still present, otherwise the
+ * DM's own card, otherwise the first row.
+ * @param {Array} roomCharacters
+ * @param {string} userId
+ * @param {string|null|undefined} selectedId
+ * @returns {object|null}
+ */
+function chooseVisibleCharacter(roomCharacters, userId, selectedId) {
+  const selected = roomCharacters.find((item) => item.id === selectedId) ?? null;
+  if (selected) {
+    return selected;
+  }
+  return roomCharacters.find((item) => item.user_id === userId) ?? roomCharacters[0] ?? null;
+}
+
 export default function GamePage() {
   const { roomId } = useParams();
 
@@ -89,6 +106,71 @@ export default function GamePage() {
       isMountedRef.current = false;
     };
   }, []);
+
+  const currentUserRef = useRef(null);
+  const isDMRef = useRef(false);
+  const selectedCharacterIdRef = useRef(null);
+  const characterReadyRef = useRef(false);
+  const characterRequestRef = useRef(0);
+
+  // Initial room load and a later join share this read. A join that already
+  // has a card on screen does not flash "Loading character..." or clear it.
+  const loadCharacters = useCallback(async () => {
+    if (!isMountedRef.current || roomIdRef.current !== roomId) {
+      return;
+    }
+
+    const user = currentUserRef.current;
+    if (!user) {
+      return;
+    }
+
+    const requestId = ++characterRequestRef.current;
+    const reportError = !characterReadyRef.current;
+    const dm = isDMRef.current;
+
+    const stillCurrent = () =>
+      isMountedRef.current &&
+      roomIdRef.current === roomId &&
+      characterRequestRef.current === requestId;
+
+    try {
+      if (dm) {
+        const roomCharacters = await getRoomCharacters(supabase, roomId);
+        if (!stillCurrent()) return;
+        const next = chooseVisibleCharacter(
+          roomCharacters,
+          user.id,
+          selectedCharacterIdRef.current,
+        );
+        selectedCharacterIdRef.current = next?.id ?? null;
+        setCharacters(roomCharacters);
+        setCharacter(next);
+      } else {
+        const mine = await getMyCharacter(supabase, roomId, user.id);
+        if (!stillCurrent()) return;
+        selectedCharacterIdRef.current = mine?.id ?? null;
+        setCharacter(mine);
+        setCharacters([]);
+      }
+
+      if (!stillCurrent()) return;
+      characterReadyRef.current = true;
+      setCharacterReady(true);
+      setCharacterError(null);
+    } catch (characterErr) {
+      if (!stillCurrent()) return;
+      // Code only: database messages often include row ids.
+      console.error('Failed to load characters.', characterErr?.code ?? '');
+      if (!reportError) return;
+      selectedCharacterIdRef.current = null;
+      characterReadyRef.current = false;
+      setCharacter(null);
+      setCharacters([]);
+      setCharacterReady(false);
+      setCharacterError('Unable to load characters.');
+    }
+  }, [roomId]);
 
   const loadRoomState = useCallback(async () => {
     if (!isMountedRef.current || roomIdRef.current !== roomId) {
@@ -142,8 +224,12 @@ export default function GamePage() {
     }
   }, [roomId]);
 
+  const handleJoined = useCallback(() => {
+    return Promise.all([loadRoomState(), loadCharacters()]);
+  }, [loadRoomState, loadCharacters]);
+
   const { socket, error: socketError } = useRoomSocket(roomId, {
-    onJoined: loadRoomState,
+    onJoined: handleJoined,
   });
 
   const refreshMembers = useCallback(async () => {
@@ -163,13 +249,19 @@ export default function GamePage() {
       setCharacterLoading(true);
       setCharacterReady(false);
       setCharacterError(null);
+      characterReadyRef.current = false;
+      selectedCharacterIdRef.current = null;
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (!isMounted || roomIdRef.current !== roomId) return;
-        if (!user) return;
+        if (!user) {
+          currentUserRef.current = null;
+          return;
+        }
         setCurrentUser(user);
+        currentUserRef.current = user;
 
         // Room name only: the uuid is internal and never shown
         try {
@@ -194,38 +286,13 @@ export default function GamePage() {
         if (!isMounted || roomIdRef.current !== roomId) return;
 
         const isRoomDM = membership?.role === 'dm';
+        isDMRef.current = isRoomDM;
         if (isMounted) {
           setIsDM(isRoomDM);
         }
 
         try {
-          if (isRoomDM) {
-            const roomCharacters = await getRoomCharacters(supabase, roomId);
-            if (isMounted) {
-              const own =
-                roomCharacters.find((item) => item.user_id === user.id) ??
-                roomCharacters[0] ??
-                null;
-              setCharacters(roomCharacters);
-              setCharacter(own);
-              setCharacterReady(true);
-            }
-          } else {
-            const mine = await getMyCharacter(supabase, roomId, user.id);
-            if (isMounted) {
-              setCharacter(mine);
-              setCharacters([]);
-              setCharacterReady(true);
-            }
-          }
-        } catch (characterErr) {
-          console.error('Failed to load characters.', characterErr?.code ?? '');
-          if (isMounted) {
-            setCharacter(null);
-            setCharacters([]);
-            setCharacterReady(false);
-            setCharacterError('Unable to load characters.');
-          }
+          await loadCharacters();
         } finally {
           if (isMounted) {
             setCharacterLoading(false);
@@ -262,7 +329,7 @@ export default function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [roomId, loadRoomState]);
+  }, [roomId, loadRoomState, loadCharacters]);
 
   // Subscribe to real-time token events broadcast by other room members
   useEffect(() => {
@@ -326,6 +393,7 @@ export default function GamePage() {
   };
 
   const handleSelectCharacter = (next) => {
+    selectedCharacterIdRef.current = next?.id ?? null;
     setCharacter(next);
     setCharacterError(null);
   };
@@ -344,6 +412,7 @@ export default function GamePage() {
         maxHp,
         ac,
       });
+      selectedCharacterIdRef.current = created?.id ?? null;
       setCharacter(created);
       setCharacters((prev) => [...prev, created]);
       setCharacterError(null);
