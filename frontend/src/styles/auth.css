@@ -1,0 +1,108 @@
+/* ── Auth (LoginPage) ─────────────────────────────────────────────────────── */
+.auth-page {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.auth-card {
+  width: min(100%, 24rem);
+  background: var(--color-base);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(43, 35, 33, 0.08);
+}
+
+.auth-title {
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: 0.25rem 0 1.5rem;
+  color: #6b5d55;
+  text-align: center;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.auth-field input {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-background);
+  text-align: center;
+}
+
+.auth-error {
+  margin: 0;
+  color: #9b2226;
+  font-weight: 600;
+}
+
+.auth-info {
+  margin: 0;
+  color: #3a6b3a;
+  font-weight: 600;
+}
+
+.auth-toggle {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: #6b5d55;
+}
+
+.auth-link {
+  font: inherit;
+  font-weight: 700;
+  color: #2b2321;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-loading {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+}
+
+/* ── Room Selection Footer (HostJoinPage) ─────────────────────────────────── */
+.selection-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.selection-logout {
+  width: 100%;
+  max-width: 15rem;
+}
+
+.selection-email {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b5d55;
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

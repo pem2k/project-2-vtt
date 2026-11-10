@@ -1,0 +1,61 @@
+/* Hide visually but keep available to screen readers (accessible field labels). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.placeholder h1 {
+  font-weight: 700;
+  font-size: 3rem;
+  margin: 0 0 0.5rem;
+}
+
+.auth-submit,
+.btn {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #2b2321;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ── Generic page shell (protected placeholders) ──────────────────────────── */
+.page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 16px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-placeholder {
+  color: #6b5d55;
+}
