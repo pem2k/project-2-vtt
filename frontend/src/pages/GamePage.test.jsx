@@ -1788,4 +1788,321 @@ describe('GamePage route', () => {
       );
     });
   });
+
+  describe('character settings panel', () => {
+    function settle() {
+      return new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    function setInputValue(input, value) {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      nativeInputValueSetter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function settingsButton(label = 'Open settings') {
+      return container.querySelector(`.game-top-bar button[aria-label="${label}"]`);
+    }
+
+    function settingsPanel() {
+      return container.querySelector('aside[aria-label="Settings"]');
+    }
+
+    async function renderMember({
+      userId = 'user-1',
+      role = 'player',
+      roomName = 'Icewind Dale',
+      activeMap = null,
+      tokens = [],
+    } = {}) {
+      vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
+        socket: { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() },
+        isReady: true,
+        error: null,
+      });
+      mockAuthenticatedGame({ userId, role, roomName, activeMap });
+      vi.spyOn(tokensLib, 'getRoomTokens').mockResolvedValue(tokens);
+      await renderGamePage('/game/room-123');
+    }
+
+    async function openSettings() {
+      const button = settingsButton('Open settings');
+      expect(button, 'top-bar Open settings button').toBeInstanceOf(HTMLButtonElement);
+      await act(async () => {
+        button.click();
+      });
+      const panel = settingsPanel();
+      expect(panel, 'settings panel').not.toBeNull();
+      expect(panel.hidden).toBe(false);
+      expect(panel.style.display).not.toBe('none');
+      return panel;
+    }
+
+    async function expectFocusableSettingsButton() {
+      const button = settingsButton('Open settings');
+      expect(button, 'top-bar Open settings button').toBeInstanceOf(HTMLButtonElement);
+      expect(button.type).toBe('button');
+      expect(button.disabled).toBe(false);
+      expect(button.tabIndex).toBeGreaterThanOrEqual(0);
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      await act(async () => {
+        button.focus();
+      });
+      expect(document.activeElement).toBe(button);
+    }
+
+    it('does not render a permanent Character card sidebar', async () => {
+      await renderMember();
+
+      expect(container.querySelector('aside[aria-label="Character card"]')).toBeNull();
+      expect(container.querySelector('.character-sidebar')).toBeNull();
+      expect(
+        [...container.querySelectorAll('aside, [role="complementary"]')].some(
+          (region) => region.getAttribute('aria-label') === 'Character card',
+        ),
+      ).toBe(false);
+    });
+
+    it('shows a focusable Settings button to a player', async () => {
+      await renderMember({ userId: 'user-1', role: 'player' });
+      await expectFocusableSettingsButton();
+    });
+
+    it('shows a focusable Settings button to the DM', async () => {
+      await renderMember({ userId: 'dm-1', role: 'dm' });
+      await expectFocusableSettingsButton();
+    });
+
+    it("opens the player's own character card from the Settings button", async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue({
+        id: 'char-aria',
+        user_id: 'user-1',
+        name: 'Aria Shadowmend',
+        hp: 7,
+        max_hp: 12,
+        ac: 15,
+        notes: 'Has a cursed amulet',
+      });
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+
+      const tab = [...panel.querySelectorAll('[role="tab"]')].find(
+        (node) => node.textContent === 'Character',
+      );
+      expect(tab, 'Character tab').not.toBeNull();
+      expect(panel.querySelector('.character-card-name')?.textContent).toBe('Aria Shadowmend');
+      expect(panel.textContent).toContain('HP 7 / 12');
+      expect(panel.textContent).toContain('AC 15');
+      expect(panel.textContent).toContain('Has a cursed amulet');
+      expect(panel.querySelector('#character-card-picker')).toBeNull();
+      expect(settingsButton('Close settings')?.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('lets a player create a character from inside the panel', async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
+      const createSpy = vi.spyOn(charactersLib, 'createCharacter').mockResolvedValue({
+        id: 'char-nyx',
+        user_id: 'user-1',
+        name: 'Nyx',
+        hp: 8,
+        max_hp: 8,
+        ac: 13,
+        notes: '',
+      });
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+
+      await act(async () => {
+        setInputValue(panel.querySelector('#character-name'), 'Nyx');
+        setInputValue(panel.querySelector('#character-max-hp'), '8');
+        setInputValue(panel.querySelector('#character-ac'), '13');
+      });
+
+      const submit = [...panel.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Create character',
+      );
+      expect(submit, 'create character button').toBeInstanceOf(HTMLButtonElement);
+
+      await act(async () => {
+        submit.click();
+        await settle();
+      });
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          roomId: 'room-123',
+          userId: 'user-1',
+          name: 'Nyx',
+          maxHp: 8,
+          ac: 13,
+        }),
+      );
+      expect(panel.querySelector('#character-name')).toBeNull();
+      expect(panel.querySelector('.character-card-name')?.textContent).toBe('Nyx');
+      expect(panel.textContent).toContain('HP 8 / 8');
+      expect(panel.textContent).toContain('AC 13');
+    });
+
+    it('shows a validation error inside the settings panel', async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
+      const createSpy = vi.spyOn(charactersLib, 'createCharacter');
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+      const submit = [...panel.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Create character',
+      );
+      expect(submit, 'create character button').toBeInstanceOf(HTMLButtonElement);
+
+      await act(async () => {
+        submit.click();
+      });
+
+      expect(panel.querySelector('[role="alert"]')?.textContent).toContain(
+        'Character name is required.',
+      );
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows the loading state inside the settings panel', async () => {
+      const pending = deferred();
+      vi.spyOn(charactersLib, 'getMyCharacter').mockImplementation(() => pending.promise);
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+
+      expect(panel.textContent).toContain('Loading character...');
+      expect(container.querySelector('.character-sidebar')).toBeNull();
+    });
+
+    it('shows a friendly load error inside the settings panel', async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockRejectedValue(
+        new Error(
+          'duplicate key value violates unique constraint 123e4567-e89b-12d3-a456-426614174000',
+        ),
+      );
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+
+      expect(panel.textContent).toContain('Unable to load characters.');
+      expect(panel.textContent).not.toContain('123e4567-e89b-12d3-a456-426614174000');
+      expect(container.textContent).not.toContain('123e4567-e89b-12d3-a456-426614174000');
+    });
+
+    it('lets the DM pick a character inside the settings panel', async () => {
+      const aria = {
+        id: 'char-aria',
+        user_id: 'dm-1',
+        name: 'Aria',
+        hp: 20,
+        max_hp: 20,
+        ac: 16,
+        notes: 'DM',
+      };
+      const bruenor = {
+        id: 'char-bruenor',
+        user_id: 'user-2',
+        name: 'Bruenor',
+        hp: 30,
+        max_hp: 40,
+        ac: 18,
+        notes: 'Dwarf',
+      };
+      vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([aria, bruenor]);
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
+
+      await renderMember({ userId: 'dm-1', role: 'dm', roomName: 'Sword Coast' });
+      const panel = await openSettings();
+      const picker = panel.querySelector('#character-card-picker');
+      expect(picker, 'character picker').toBeInstanceOf(HTMLSelectElement);
+      expect(panel.querySelector('.character-card-name')?.textContent).toBe('Aria');
+      expect([...picker.options].map((option) => option.textContent)).toEqual(
+        expect.arrayContaining(['Aria', 'Bruenor']),
+      );
+
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        'value',
+      ).set;
+      await act(async () => {
+        valueSetter.call(picker, 'char-bruenor');
+        picker.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
+      expect(panel.querySelector('.character-card-name')?.textContent).toBe('Bruenor');
+      expect(panel.textContent).toContain('Dwarf');
+      expect(panel.querySelector('#character-card-picker')?.value).toBe('char-bruenor');
+    });
+
+    it('keeps unfinished create-form text after the panel is closed and reopened', async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
+
+      await renderMember({ userId: 'user-1', role: 'player' });
+      const panel = await openSettings();
+      const nameInput = panel.querySelector('#character-name');
+      expect(nameInput, 'create form name field').toBeInstanceOf(HTMLInputElement);
+
+      await act(async () => {
+        setInputValue(nameInput, 'Unfinished hero');
+      });
+
+      const closeButton = settingsButton('Close settings');
+      expect(closeButton, 'top-bar Close settings button').toBeInstanceOf(HTMLButtonElement);
+      expect(closeButton.getAttribute('aria-expanded')).toBe('true');
+
+      await act(async () => {
+        closeButton.click();
+      });
+
+      const hiddenPanel = settingsPanel();
+      expect(hiddenPanel, 'settings panel stays mounted').not.toBeNull();
+      expect(hiddenPanel.hidden).toBe(true);
+      expect(hiddenPanel.style.display).toBe('none');
+      expect(hiddenPanel.querySelector('#character-name')?.value).toBe('Unfinished hero');
+      expect(settingsButton('Open settings')?.getAttribute('aria-expanded')).toBe('false');
+
+      const reopened = await openSettings();
+      expect(reopened.querySelector('#character-name')?.value).toBe('Unfinished hero');
+    });
+
+    it('keeps the board, chat, and dice roller mounted outside the settings panel', async () => {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
+
+      await renderMember({
+        userId: 'user-1',
+        role: 'player',
+        activeMap: { id: 'map-1', url: 'https://map.example/board.png' },
+        tokens: [{ id: 'tok-1', name: 'Aria', x: 2, y: 3 }],
+      });
+      const panel = await openSettings();
+
+      const board = container.querySelector('.game-viewport [data-testid="board"]');
+      const chat = container.querySelector('[data-testid="chat-panel"]');
+      const dice = container.querySelector('[aria-label="Roll d20"]');
+      expect(board, 'board').not.toBeNull();
+      expect(chat, 'chat').not.toBeNull();
+      expect(dice, 'dice').not.toBeNull();
+      expect(panel.contains(board)).toBe(false);
+      expect(panel.contains(chat)).toBe(false);
+      expect(panel.contains(dice)).toBe(false);
+      expect(container.querySelector('.game-main-area .character-sidebar')).toBeNull();
+      expect(latestBoardProps.width).toBe(800);
+      expect(latestBoardProps.height).toBe(600);
+      expect(latestBoardProps.onMoveToken).toEqual(expect.any(Function));
+      expect(latestBoardProps.activeMapUrl).toBe('https://map.example/board.png');
+
+      const chatInput = container.querySelector('[aria-label="Chat message input"]');
+      const firstDie = container.querySelector('[aria-label="Roll d4"]');
+      expect(chatInput.compareDocumentPosition(firstDie) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+  });
 });
