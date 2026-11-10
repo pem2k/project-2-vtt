@@ -4,9 +4,16 @@ import React, { useState, useRef, useEffect } from 'react';
  * ChatPanel component.
  * Positioned on the right side of the screen.
  * Displays message history with "username: text" format and a text input field at the bottom.
+ * Public dice rolls share that list, in time order, and read as roll lines rather than chat.
  * Includes a top tab bar, including a "DM Controls" toggle tab when the current user is a DM.
  */
-export default function ChatPanel({ currentUser, isDM, isDMModalOpen, onToggleDMControls }) {
+export default function ChatPanel({
+  currentUser,
+  isDM,
+  isDMModalOpen,
+  onToggleDMControls,
+  rolls = [],
+}) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
@@ -14,9 +21,16 @@ export default function ChatPanel({ currentUser, isDM, isDMModalOpen, onToggleDM
   const username =
     currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'Player';
 
+  const timeline = [
+    ...messages.map((message) => ({ kind: 'message', at: message.at, message })),
+    ...rolls.map((roll) => ({ kind: 'roll', at: roll.at, roll })),
+  ].sort((left, right) => left.at - right.at);
+
+  const isLogEmpty = messages.length === 0 && rolls.length === 0;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, rolls]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -27,6 +41,7 @@ export default function ChatPanel({ currentUser, isDM, isDMModalOpen, onToggleDM
       id: crypto.randomUUID(),
       username,
       text: trimmed,
+      at: Date.now(),
     };
 
     setMessages((prev) => [...prev, newMsg]);
@@ -52,15 +67,21 @@ export default function ChatPanel({ currentUser, isDM, isDMModalOpen, onToggleDM
       </div>
 
       <div className="chat-messages" role="log" aria-live="polite">
-        {messages.length === 0 ? (
+        {isLogEmpty ? (
           <p className="chat-empty">No messages yet.</p>
         ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="chat-message-row">
-              <span className="chat-username">{msg.username}: </span>
-              <span className="chat-text">{msg.text}</span>
-            </div>
-          ))
+          timeline.map((entry) =>
+            entry.kind === 'roll' ? (
+              <div key={entry.roll.id} className="chat-roll-row">
+                {`${entry.roll.playerName} rolled ${entry.roll.die}: ${entry.roll.result}`}
+              </div>
+            ) : (
+              <div key={entry.message.id} className="chat-message-row">
+                <span className="chat-username">{entry.message.username}: </span>
+                <span className="chat-text">{entry.message.text}</span>
+              </div>
+            ),
+          )
         )}
         <div ref={messagesEndRef} />
       </div>

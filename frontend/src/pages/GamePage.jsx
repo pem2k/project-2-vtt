@@ -12,8 +12,10 @@ import {
   removeTokenById,
   reconcileTokens,
 } from '../lib/tokens.js';
+import { appendRoll, emitRollDice } from '../lib/dice.js';
 import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/characters.js';
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
+import DicePanel from '../components/DicePanel.jsx';
 import DMControls from '../components/DMControls.jsx';
 import CharacterCard from '../components/CharacterCard.jsx';
 import Board from '../components/board/Board.jsx';
@@ -61,6 +63,7 @@ export default function GamePage() {
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
   const [members, setMembers] = useState([]);
+  const [rolls, setRolls] = useState([]);
   const [character, setCharacter] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [characterError, setCharacterError] = useState(null);
@@ -297,6 +300,31 @@ export default function GamePage() {
     };
   }, [socket]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDiceResult = (roll) => {
+      if (!roll || roll.roomId !== roomId) return;
+      setRolls((prev) =>
+        appendRoll(prev, {
+          ...roll,
+          id: crypto.randomUUID(),
+          at: Date.now(),
+        }),
+      );
+    };
+
+    socket.on('diceResult', handleDiceResult);
+    return () => {
+      socket.off('diceResult', handleDiceResult);
+    };
+  }, [socket, roomId]);
+
+  const handleRoll = (die) => {
+    if (!socket?.connected) return;
+    emitRollDice(socket, roomId, die);
+  };
+
   const handleSelectCharacter = (next) => {
     setCharacter(next);
     setCharacterError(null);
@@ -416,7 +444,7 @@ export default function GamePage() {
         )}
       </header>
 
-      {/* Main Layout: Character card on the left, board in the center, chat on the right */}
+      {/* Main Layout: Character card on the left, board in the center, chat and dice on the right */}
       <div className="game-main-area">
         <aside className="character-sidebar" aria-label="Character card">
           <div className="character-sidebar-header">
@@ -461,13 +489,17 @@ export default function GamePage() {
           )}
         </main>
 
-        {/* Chat panel on the right side with DM Controls toggle tab */}
-        <ChatPanel
-          currentUser={currentUser}
-          isDM={isDM}
-          isDMModalOpen={isDMModalOpen}
-          onToggleDMControls={() => setIsDMModalOpen((prev) => !prev)}
-        />
+        {/* Right column: chat (DM Controls tab included) above the dice roller */}
+        <div className="game-right-column">
+          <ChatPanel
+            currentUser={currentUser}
+            isDM={isDM}
+            isDMModalOpen={isDMModalOpen}
+            onToggleDMControls={() => setIsDMModalOpen((prev) => !prev)}
+            rolls={rolls}
+          />
+          <DicePanel onRoll={handleRoll} disabled={!socket?.connected} />
+        </div>
       </div>
 
       {/* Floating DM Controls Panel (opens when DM Controls tab is active) */}

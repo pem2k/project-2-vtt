@@ -40,7 +40,11 @@ vi.mock('../components/board/Board.jsx', () => ({
 }));
 
 vi.mock('../components/ChatPanel.jsx', () => ({
-  default: () => <div data-testid="chat-panel" />,
+  default: () => (
+    <div data-testid="chat-panel">
+      <input aria-label="Chat message input" readOnly />
+    </div>
+  ),
 }));
 
 let latestDMProps = {};
@@ -145,6 +149,27 @@ describe('GamePage route', () => {
     );
 
     expect(markup).not.toMatch(/room-123/);
+  });
+
+  it('renders the dice buttons below the chat input', () => {
+    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
+      socket: null,
+      isReady: false,
+      error: null,
+    });
+
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/game/room-123']}>
+        <Routes>
+          <Route path="/game/:roomId" element={<GamePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const inputAt = markup.indexOf('aria-label="Chat message input"');
+    const diceAt = markup.indexOf('aria-label="Roll d4"');
+    expect(inputAt).toBeGreaterThanOrEqual(0);
+    expect(diceAt).toBeGreaterThan(inputAt);
   });
 
   it('keeps loading active while initial snapshot is delayed, only showing board once resolved', async () => {

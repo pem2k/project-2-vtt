@@ -9,6 +9,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'tests/dice.test.js',
+      'tests/diceSocket.test.js',
       'tests/socket.test.js',
       'tests/socketCors.test.js',
       'tests/roomSocket.test.js',
