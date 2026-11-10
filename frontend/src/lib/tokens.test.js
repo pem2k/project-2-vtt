@@ -9,6 +9,8 @@ import {
   addToken,
   removeToken,
   assignToken,
+  moveToken,
+  emitMoveToken,
 } from './tokens.js';
 
 describe('tokens library', () => {
@@ -247,6 +249,103 @@ describe('tokens library', () => {
     });
   });
 
+  describe('moveToken and emitMoveToken', () => {
+    it('moveToken validates coordinates and token id', async () => {
+      const fakeSupabase = { rpc: vi.fn() };
+      await expect(moveToken(fakeSupabase, { tokenId: '', x: 1, y: 1 })).rejects.toThrow(
+        /token id is required/i,
+      );
+      await expect(moveToken(fakeSupabase, { tokenId: 't1', x: NaN, y: 1 })).rejects.toThrow(
+        /finite numbers/i,
+      );
+      await expect(moveToken(fakeSupabase, { tokenId: 't1', x: 1, y: Infinity })).rejects.toThrow(
+        /finite numbers/i,
+      );
+      await expect(moveToken(fakeSupabase, { tokenId: 't1', x: '1', y: 1 })).rejects.toThrow(
+        /finite numbers/i,
+      );
+      expect(fakeSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('moveToken calls move_token RPC and returns the updated row', async () => {
+      const updatedRow = { id: 't1', name: 'Aria', x: 4.5, y: 6.25, assigned_to: 'u1' };
+      const fakeSupabase = {
+        rpc: vi.fn().mockResolvedValue({ data: updatedRow, error: null }),
+      };
+
+      const result = await moveToken(fakeSupabase, { tokenId: 't1', x: 4.5, y: 6.25 });
+      expect(fakeSupabase.rpc).toHaveBeenCalledWith('move_token', {
+        p_token_id: 't1',
+        p_x: 4.5,
+        p_y: 6.25,
+      });
+      expect(result).toEqual(updatedRow);
+    });
+
+    it('moveToken propagates RPC errors', async () => {
+      const fakeSupabase = {
+        rpc: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error('not allowed to move this token') }),
+      };
+
+      await expect(moveToken(fakeSupabase, { tokenId: 't1', x: 2, y: 3 })).rejects.toThrow(
+        'not allowed to move this token',
+      );
+    });
+
+    it('emitMoveToken rejects when socket is not connected', async () => {
+      const disconnectedSocket = { connected: false, emit: vi.fn() };
+      await expect(
+        emitMoveToken(disconnectedSocket, { roomId: 'r1', tokenId: 't1' }),
+      ).rejects.toThrow(/socket is not connected/i);
+    });
+
+    it('emitMoveToken resolves on successful ack', async () => {
+      const socket = {
+        connected: true,
+        emit: vi.fn((event, payload, cb) => {
+          cb({ ok: true });
+        }),
+      };
+
+      const res = await emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' });
+      expect(socket.emit).toHaveBeenCalledWith(
+        'moveToken',
+        { roomId: 'r1', tokenId: 't1' },
+        expect.any(Function),
+      );
+      expect(res).toEqual({ ok: true });
+    });
+
+    it('emitMoveToken rejects with error message when ack fails', async () => {
+      const socket = {
+        connected: true,
+        emit: vi.fn((event, payload, cb) => {
+          cb({ ok: false, error: 'Not authorized to move this token.' });
+        }),
+      };
+
+      await expect(emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' })).rejects.toThrow(
+        'Not authorized to move this token.',
+      );
+    });
+
+    it('emitMoveToken rejects on timeout', async () => {
+      vi.useFakeTimers();
+      const socket = {
+        connected: true,
+        emit: vi.fn(), // never calls ack
+      };
+
+      const promise = emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' }, { timeout: 100 });
+      vi.advanceTimersByTime(101);
+
+      await expect(promise).rejects.toThrow(/timed out/i);
+      vi.useRealTimers();
+    });
+  });
+
   describe('reconcileTokens', () => {
     it('returns the snapshot unmodified when no pending events exist', () => {
       const snapshot = [
@@ -282,6 +381,18 @@ describe('tokens library', () => {
       expect(result).toHaveLength(1);
       expect(result[0].x).toBe(50);
       expect(result[0].y).toBe(75);
+    });
+
+    it('prevents older snapshot state from overwriting newer tokenMoved events', () => {
+      const snapshot = [{ id: 't1', name: 'Aria', x: 0, y: 0 }];
+      const pendingEvents = [
+        { type: 'tokenMoved', token: { id: 't1', name: 'Aria', x: 7.5, y: 8.25 } },
+      ];
+
+      const result = reconcileTokens(snapshot, pendingEvents);
+      expect(result).toHaveLength(1);
+      expect(result[0].x).toBe(7.5);
+      expect(result[0].y).toBe(8.25);
     });
 
     it('removes tokens deleted via tokenRemoved events during in-flight snapshot', () => {

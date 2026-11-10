@@ -49,17 +49,30 @@ vi.mock('react-konva', () => {
     Image: ({ width, height }) => (
       <div data-testid="konva-image" data-width={width} data-height={height} />
     ),
-    Group: ({ children, x, y, name, listening }) => (
-      <div
-        data-testid="token-group"
-        data-x={x}
-        data-y={y}
-        data-name={name}
-        data-listening={listening ? 'true' : 'false'}
-      >
-        {children}
-      </div>
-    ),
+    Group: ({ children, x, y, name, listening, draggable, onDragEnd }) => {
+      const fakeNode = {
+        x: () => x,
+        y: () => y,
+        position: vi.fn(),
+        getLayer: () => ({ batchDraw: vi.fn() }),
+      };
+      return (
+        <div
+          data-testid="token-group"
+          data-x={x}
+          data-y={y}
+          data-name={name}
+          data-listening={listening ? 'true' : 'false'}
+          data-draggable={draggable ? 'true' : 'false'}
+          onClick={(e) => {
+            const target = e?.target && typeof e.target.x === 'function' ? e.target : fakeNode;
+            onDragEnd?.({ target });
+          }}
+        >
+          {children}
+        </div>
+      );
+    },
     Circle: ({ radius, fill, dash }) => (
       <div
         data-testid="token-circle"
@@ -727,5 +740,62 @@ describe('Board component', () => {
       root = null;
     });
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards drag permissions and movement callback to tokens', async () => {
+    const onMoveToken = vi.fn();
+    const tokens = [
+      { id: 't1', name: 'Aria', x: 2, y: 3, assigned_to: 'user-player' },
+      { id: 't2', name: 'Goblin', x: 5, y: 5, assigned_to: null },
+    ];
+
+    await act(async () => {
+      root.render(
+        <Board
+          activeMapUrl="https://example.com/map.png"
+          width={800}
+          height={600}
+          cellSize={50}
+          tokens={tokens}
+          currentUserId="user-player"
+          isDm={false}
+          isSocketReady={true}
+          onMoveToken={onMoveToken}
+        />,
+      );
+    });
+
+    const tokenEls = container.querySelectorAll('[data-testid="token-group"]');
+    expect(tokenEls).toHaveLength(2);
+    // Player can drag Aria, but not Goblin
+    expect(tokenEls[0].getAttribute('data-draggable')).toBe('true');
+    expect(tokenEls[1].getAttribute('data-draggable')).toBe('false');
+
+    // Trigger drag-end callback on the draggable token and verify onMoveToken is invoked
+    await act(async () => {
+      tokenEls[0].click();
+    });
+    expect(onMoveToken).toHaveBeenCalledTimes(1);
+    expect(onMoveToken).toHaveBeenCalledWith(tokens[0], 2, 3, expect.any(Function));
+
+    // Verify pending tokens are rendered non-draggable
+    await act(async () => {
+      root.render(
+        <Board
+          activeMapUrl="https://example.com/map.png"
+          width={800}
+          height={600}
+          cellSize={50}
+          tokens={tokens}
+          currentUserId="user-player"
+          isDm={false}
+          isSocketReady={true}
+          pendingTokenIds={new Set(['t1'])}
+          onMoveToken={onMoveToken}
+        />,
+      );
+    });
+    const updatedTokenEls = container.querySelectorAll('[data-testid="token-group"]');
+    expect(updatedTokenEls[0].getAttribute('data-draggable')).toBe('false');
   });
 });

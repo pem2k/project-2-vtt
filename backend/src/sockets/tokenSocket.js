@@ -19,7 +19,7 @@ function validateTokenPayload(socket, payload) {
   return { ok: true, roomId, tokenId };
 }
 
-async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
+async function getRoomMemberClient(socket, roomId, createUserClient) {
   const { url, anonKey } = getSupabaseConfig();
   const client = createUserClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${socket.accessToken}` } },
@@ -32,11 +32,20 @@ async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
     .eq('user_id', socket.user?.id)
     .maybeSingle();
 
-  if (memberError || member?.role !== 'dm') {
+  if (memberError || !member) {
+    return { ok: false, error: 'You are not a member of this room.' };
+  }
+
+  return { ok: true, client, member };
+}
+
+async function authorizeDmTokenEvent(socket, roomId, createUserClient) {
+  const memberResult = await getRoomMemberClient(socket, roomId, createUserClient);
+  if (!memberResult.ok || memberResult.member?.role !== 'dm') {
     return { ok: false, error: 'Only DMs can manage tokens.' };
   }
 
-  return { ok: true, client };
+  return { ok: true, client: memberResult.client };
 }
 
 async function verifyTokenPresent(client, roomId, tokenId) {
@@ -117,5 +126,52 @@ export function registerTokenEvents(io, { createUserClient = createClient } = {}
     handleTokenEvent(socket, 'tokenAdded', verifyTokenPresent);
     handleTokenEvent(socket, 'tokenRemoved', verifyTokenRemoved);
     handleTokenEvent(socket, 'tokenUpdated', verifyTokenPresent);
+
+    socket.on('moveToken', async (payload, acknowledge = () => {}) => {
+      const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
+      try {
+        const valid = validateTokenPayload(socket, payload);
+        if (!valid.ok) {
+          ack({ ok: false, error: valid.error });
+          return;
+        }
+
+        const memberResult = await getRoomMemberClient(socket, valid.roomId, createUserClient);
+        if (!memberResult.ok) {
+          ack({ ok: false, error: memberResult.error });
+          return;
+        }
+
+        const { client, member } = memberResult;
+        const { roomId, tokenId } = valid;
+
+        const { data: tokenRow, error: tokenError } = await client
+          .from('tokens')
+          .select('*')
+          .eq('id', tokenId)
+          .eq('room_id', roomId)
+          .maybeSingle();
+
+        if (tokenError || !tokenRow) {
+          ack({ ok: false, error: 'Token not found.' });
+          return;
+        }
+
+        const isDm = member.role === 'dm';
+        const isAssigned = Boolean(
+          tokenRow.assigned_to && tokenRow.assigned_to === socket.user?.id,
+        );
+
+        if (!isDm && !isAssigned) {
+          ack({ ok: false, error: 'Not authorized to move this token.' });
+          return;
+        }
+
+        io.to(roomId).emit('tokenMoved', tokenRow);
+        ack({ ok: true });
+      } catch (error) {
+        ack({ ok: false, error: error.message || 'Unable to process moveToken.' });
+      }
+    });
   });
 }

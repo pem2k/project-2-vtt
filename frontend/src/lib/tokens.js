@@ -74,7 +74,11 @@ export function removeTokenById(list = [], id) {
 export function reconcileTokens(snapshotTokens = [], pendingEvents = []) {
   let result = [...snapshotTokens];
   for (const event of pendingEvents) {
-    if (event.type === 'tokenAdded' || event.type === 'tokenUpdated') {
+    if (
+      event.type === 'tokenAdded' ||
+      event.type === 'tokenUpdated' ||
+      event.type === 'tokenMoved'
+    ) {
       if (event.token) {
         result = upsertToken(result, event.token);
       }
@@ -173,4 +177,80 @@ export async function assignToken(supabase, { tokenId, userId }) {
     throw error;
   }
   return data;
+}
+
+/**
+ * Moves a token to new grid coordinates (x, y) via move_token RPC.
+ * @param {object} supabase
+ * @param {object} params
+ * @param {string} params.tokenId
+ * @param {number} params.x
+ * @param {number} params.y
+ * @returns {Promise<object>} The updated token record
+ */
+export async function moveToken(supabase, { tokenId, x, y }) {
+  if (!tokenId || typeof tokenId !== 'string' || !tokenId.trim()) {
+    throw new Error('Token ID is required.');
+  }
+  if (
+    typeof x !== 'number' ||
+    !Number.isFinite(x) ||
+    typeof y !== 'number' ||
+    !Number.isFinite(y)
+  ) {
+    throw new Error('Coordinates must be finite numbers.');
+  }
+
+  const { data, error } = await supabase.rpc('move_token', {
+    p_token_id: tokenId,
+    p_x: x,
+    p_y: y,
+  });
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+/**
+ * Emits moveToken event to the Socket.IO server with a bounded acknowledgement timeout.
+ * @param {import('socket.io-client').Socket} socket
+ * @param {object} payload
+ * @param {string} payload.roomId
+ * @param {string} payload.tokenId
+ * @param {object} [options]
+ * @param {number} [options.timeout=5000]
+ * @returns {Promise<object>} Server acknowledgement response
+ */
+export function emitMoveToken(socket, { roomId, tokenId }, { timeout = 5000 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!socket?.connected) {
+      reject(new Error('Socket is not connected.'));
+      return;
+    }
+
+    let settled = false;
+    let timer = null;
+
+    if (timeout > 0) {
+      timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('Timed out waiting for server to broadcast token move.'));
+      }, timeout);
+    }
+
+    socket.emit('moveToken', { roomId, tokenId }, (response) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+
+      if (response && response.ok === false) {
+        reject(new Error(response.error || 'Failed to broadcast token move.'));
+      } else {
+        resolve(response);
+      }
+    });
+  });
 }
