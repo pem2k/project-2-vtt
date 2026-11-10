@@ -15,3 +15,4 @@
 [2026-11-09] [orchestrator] [#15] Implemented server-side dice rolls and a compact DicePanel under the board — rollDice names the player from socket.user and broadcasts diceResult to the whole room, and GamePage only appends results for its own roomId.
 [2026-11-09] [orchestrator] [#15] RED tests move public roll lines into ChatPanel and leave DicePanel as buttons only — results like "Aria rolled d20: 17" belong in the chat log, and the dice buttons sit below the chat input in the right column.
 [2026-11-09] [orchestrator] [#15] GREEN puts each public roll in the chat timeline and the dice buttons in a round four-column grid at the bottom of the right column — results stay with the chat log, and the roller sits under the chat input as in the Board (Player) mockup.
+[2026-11-10] [orchestrator] [#50] Collapsed the three token socket handlers into one shared helper; behavior and tests unchanged.
