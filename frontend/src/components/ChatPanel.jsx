@@ -6,11 +6,12 @@ import { formatRollMessage, parseRollCommand } from '../lib/dice.js';
  * Positioned on the right side of the screen.
  * Displays message history with "username: text" format and a text input field at the bottom.
  * Public dice rolls share that list, in time order, and read as roll lines rather than chat.
- * Includes a top tab bar, including a "DM Controls" toggle tab when the current user is a DM.
+ * Includes a top tab bar with a Settings toggle button available to all players and DMs (#55).
  */
 export default function ChatPanel({
   currentUser,
-  isDM,
+  isSettingsOpen,
+  onToggleSettings,
   isDMModalOpen,
   onToggleDMControls,
   rolls = [],
@@ -19,6 +20,9 @@ export default function ChatPanel({
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
+
+  const isOpen = isSettingsOpen ?? isDMModalOpen ?? false;
+  const handleToggle = onToggleSettings ?? onToggleDMControls;
 
   const username =
     currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'Player';
@@ -64,17 +68,18 @@ export default function ChatPanel({
       {/* Top Header / Tabs of the Chat Panel */}
       <div className="chat-top-tabs">
         <span className="chat-tab-title">Chat</span>
-        {isDM && (
-          <button
-            type="button"
-            className={`chat-dm-tab-button ${isDMModalOpen ? 'active' : ''}`}
-            onClick={onToggleDMControls}
-            aria-label={isDMModalOpen ? 'Close DM Controls' : 'Open DM Controls'}
-            title="DM Controls"
-          >
-            ⚙️
-          </button>
-        )}
+        <button
+          type="button"
+          id="settings-toggle-button"
+          className={`chat-dm-tab-button ${isOpen ? 'active' : ''}`}
+          onClick={handleToggle}
+          aria-label={isOpen ? 'Close Settings' : 'Open Settings'}
+          aria-expanded={isOpen}
+          aria-controls="settings-panel"
+          title="Settings"
+        >
+          ⚙️
+        </button>
       </div>
 
       <div className="chat-messages" role="log" aria-live="polite">

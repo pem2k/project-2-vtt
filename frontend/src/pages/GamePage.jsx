@@ -18,8 +18,7 @@ import { appendRoll, emitRollDice } from '../lib/dice.js';
 import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/characters.js';
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
 import DicePanel from '../components/DicePanel.jsx';
-import DMControls from '../components/DMControls.jsx';
-import CharacterCard from '../components/CharacterCard.jsx';
+import SettingsPanel from '../components/SettingsPanel.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
 
@@ -77,7 +76,7 @@ export default function GamePage() {
   const [isDM, setIsDM] = useState(false);
   const [activeMap, setActiveMap] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDMModalOpen, setIsDMModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
@@ -642,34 +641,8 @@ export default function GamePage() {
         )}
       </header>
 
-      {/* Main Layout: Character card on the left, board in the center, chat and dice on the right */}
+      {/* Main Layout: Board across available space, chat and dice on the right (#55) */}
       <div className="game-main-area">
-        <aside className="character-sidebar" aria-label="Character card">
-          <div className="character-sidebar-header">
-            <span className="chat-tab-title">Character</span>
-          </div>
-          <div className="character-sidebar-body">
-            {characterError && (
-              <p className="auth-error" role="alert">
-                {characterError}
-              </p>
-            )}
-            {characterLoading ? (
-              <p className="character-card-loading">Loading character...</p>
-            ) : (
-              characterReady && (
-                <CharacterCard
-                  character={character}
-                  characters={characters}
-                  isDM={isDM}
-                  onCreate={handleCreateCharacter}
-                  onSelect={handleSelectCharacter}
-                />
-              )
-            )}
-          </div>
-        </aside>
-
         <main className="game-viewport">
           {loading ? (
             <p className="game-loading-text">Loading game room...</p>
@@ -692,13 +665,13 @@ export default function GamePage() {
           )}
         </main>
 
-        {/* Right column: chat (DM Controls tab included) above the dice roller */}
+        {/* Right column: chat (settings button included) above the dice roller */}
         <div className="game-right-column">
           <ChatPanel
             currentUser={currentUser}
             isDM={isDM}
-            isDMModalOpen={isDMModalOpen}
-            onToggleDMControls={() => setIsDMModalOpen((prev) => !prev)}
+            isSettingsOpen={isSettingsOpen}
+            onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
             rolls={rolls}
             onRoll={handleRoll}
           />
@@ -706,28 +679,35 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* Floating DM Controls Panel (opens when DM Controls tab is active) */}
-      {isDM && (
-        <DMControls
-          supabase={supabase}
-          roomId={roomId}
-          activeMapId={activeMap?.id}
-          isOpen={isDMModalOpen}
-          onClose={() => setIsDMModalOpen(false)}
-          onMapUploaded={handleMapUploaded}
-          onSelectActiveMap={handleSelectActiveMap}
-          showGrid={showGrid}
-          onToggleGrid={() => setShowGrid((prev) => !prev)}
-          gridCellSize={gridCellSize}
-          onChangeGridCellSize={setGridCellSize}
-          tokens={tokens}
-          members={members}
-          onAddToken={handleAddToken}
-          onRemoveToken={handleRemoveToken}
-          onAssignToken={handleAssignToken}
-          onRefreshMembers={refreshMembers}
-        />
-      )}
+      {/* Floating Settings Panel (Character tab for players; Character, Users, Maps, Tokens for DMs) */}
+      <SettingsPanel
+        key={roomId}
+        isDM={isDM}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        character={character}
+        characters={characters}
+        onCreateCharacter={handleCreateCharacter}
+        onSelectCharacter={handleSelectCharacter}
+        characterLoading={characterLoading}
+        characterError={characterError}
+        characterReady={characterReady}
+        supabase={supabase}
+        roomId={roomId}
+        activeMapId={activeMap?.id}
+        onMapUploaded={handleMapUploaded}
+        onSelectActiveMap={handleSelectActiveMap}
+        showGrid={showGrid}
+        onToggleGrid={() => setShowGrid((prev) => !prev)}
+        gridCellSize={gridCellSize}
+        onChangeGridCellSize={setGridCellSize}
+        tokens={tokens}
+        members={members}
+        onAddToken={handleAddToken}
+        onRemoveToken={handleRemoveToken}
+        onAssignToken={handleAssignToken}
+        onRefreshMembers={refreshMembers}
+      />
     </div>
   );
 }

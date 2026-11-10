@@ -164,3 +164,27 @@ describe('ChatPanel slash command input', () => {
     expect(div.textContent).toContain('aria: Hello party!');
   });
 });
+
+describe('ChatPanel settings button (#55)', () => {
+  it('renders gear button for players and DMs with accessible labels and attributes', () => {
+    const onToggleSettings = vi.fn();
+    const markup = renderToStaticMarkup(
+      <ChatPanel isSettingsOpen={false} onToggleSettings={onToggleSettings} />,
+    );
+
+    expect(markup).toContain('id="settings-toggle-button"');
+    expect(markup).toContain('aria-label="Open Settings"');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('aria-controls="settings-panel"');
+  });
+
+  it('updates aria-label and aria-expanded when settings panel is open', () => {
+    const markup = renderToStaticMarkup(
+      <ChatPanel isSettingsOpen={true} onToggleSettings={vi.fn()} />,
+    );
+
+    expect(markup).toContain('aria-label="Close Settings"');
+    expect(markup).toContain('aria-expanded="true"');
+    expect(markup).toContain('class="chat-dm-tab-button active"');
+  });
+});

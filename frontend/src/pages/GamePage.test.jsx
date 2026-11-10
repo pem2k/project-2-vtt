@@ -10,6 +10,7 @@ import * as roomsLib from '../lib/rooms.js';
 import * as charactersLib from '../lib/characters.js';
 import { supabase } from '../lib/supabaseClient.js';
 import * as useRoomSocketModule from '../hooks/useRoomSocket.js';
+import CharacterTab from '../components/CharacterTab.jsx';
 import { deferred } from '../test/deferred.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -54,11 +55,21 @@ vi.mock('../components/ChatPanel.jsx', () => ({
 }));
 
 let latestDMProps = {};
-vi.mock('../components/DMControls.jsx', () => ({
+vi.mock('../components/SettingsPanel.jsx', () => ({
   default: (props) => {
     latestDMProps = props;
     return (
-      <div data-testid="dm-controls">
+      <div data-testid="settings-panel">
+        <CharacterTab
+          character={props.character}
+          characters={props.characters}
+          isDM={props.isDM}
+          onCreate={props.onCreateCharacter}
+          onSelect={props.onSelectCharacter}
+          characterLoading={props.characterLoading}
+          characterError={props.characterError}
+          characterReady={props.characterReady}
+        />
         <button
           data-testid="add-token-btn"
           onClick={() => props.onAddToken?.('Drizzt', '#3CB44B')}
