@@ -231,6 +231,34 @@ body {
   color: #2b2321;
 }
 
+.game-settings-button {
+  background: var(--color-base);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 0.2rem 0.65rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #2b2321;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.game-settings-button:hover {
+  background-color: var(--color-surface);
+  border-color: #baa295;
+}
+
+.game-settings-button[aria-expanded='true'] {
+  background-color: var(--color-primary);
+  border-color: #baa295;
+}
+
 .game-main-area {
   display: flex;
   flex: 1;
@@ -255,37 +283,7 @@ body {
   margin: auto;
 }
 
-/* ── Character card sidebar (left) ───────────────────────────────────────── */
-.character-sidebar {
-  width: 260px;
-  flex: 0 0 260px;
-  height: 100%;
-  min-height: 0;
-  background-color: var(--color-surface);
-  border-right: 2px solid var(--color-primary);
-  display: flex;
-  flex-direction: column;
-}
-
-.character-sidebar-header {
-  display: flex;
-  align-items: center;
-  padding: 0.4rem 0.65rem;
-  background-color: #ede2d8;
-  border-bottom: 1.5px solid var(--color-primary);
-  flex-shrink: 0;
-}
-
-.character-sidebar-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
+/* ── Character card (rendered inside Settings) ───────────────────────────── */
 .character-card {
   background: var(--color-base);
   border: 1px solid var(--color-surface);
@@ -544,9 +542,8 @@ body {
   cursor: not-allowed;
 }
 
-/* Keep the board inside the center column when the sidebars share a ~1024px window. */
+/* Keep the board inside the center column when the chat column shares a ~1024px window. */
 @media (max-width: 1320px) {
-  .character-sidebar,
   .game-right-column {
     width: 200px;
     flex-basis: 200px;
@@ -554,13 +551,11 @@ body {
 }
 
 @media (max-width: 1100px) {
-  .character-sidebar,
   .game-right-column {
     width: 180px;
     flex-basis: 180px;
   }
 
-  .character-sidebar-body,
   .character-card {
     padding: 0.5rem;
   }

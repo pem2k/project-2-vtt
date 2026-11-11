@@ -19,6 +19,7 @@ import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/chara
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
 import DicePanel from '../components/DicePanel.jsx';
 import DMControls from '../components/DMControls.jsx';
+import SettingsPanel from '../components/SettingsPanel.jsx';
 import CharacterCard from '../components/CharacterCard.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
@@ -78,6 +79,7 @@ export default function GamePage() {
   const [activeMap, setActiveMap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDMModalOpen, setIsDMModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [gridCellSize, setGridCellSize] = useState(50);
   const [tokens, setTokens] = useState([]);
@@ -640,36 +642,19 @@ export default function GamePage() {
             {displayError}
           </p>
         )}
+        <button
+          type="button"
+          className="game-settings-button"
+          aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'}
+          aria-expanded={isSettingsOpen}
+          onClick={() => setIsSettingsOpen((open) => !open)}
+        >
+          Settings
+        </button>
       </header>
 
-      {/* Main Layout: Character card on the left, board in the center, chat and dice on the right */}
+      {/* Main Layout: board in the center, chat and dice on the right */}
       <div className="game-main-area">
-        <aside className="character-sidebar" aria-label="Character card">
-          <div className="character-sidebar-header">
-            <span className="chat-tab-title">Character</span>
-          </div>
-          <div className="character-sidebar-body">
-            {characterError && (
-              <p className="auth-error" role="alert">
-                {characterError}
-              </p>
-            )}
-            {characterLoading ? (
-              <p className="character-card-loading">Loading character...</p>
-            ) : (
-              characterReady && (
-                <CharacterCard
-                  character={character}
-                  characters={characters}
-                  isDM={isDM}
-                  onCreate={handleCreateCharacter}
-                  onSelect={handleSelectCharacter}
-                />
-              )
-            )}
-          </div>
-        </aside>
-
         <main className="game-viewport">
           {loading ? (
             <p className="game-loading-text">Loading game room...</p>
@@ -704,6 +689,27 @@ export default function GamePage() {
           <DicePanel onRoll={handleRoll} disabled={!socket?.connected} />
         </div>
       </div>
+
+      <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)}>
+        {characterError && (
+          <p className="auth-error" role="alert">
+            {characterError}
+          </p>
+        )}
+        {characterLoading ? (
+          <p className="character-card-loading">Loading character...</p>
+        ) : (
+          characterReady && (
+            <CharacterCard
+              character={character}
+              characters={characters}
+              isDM={isDM}
+              onCreate={handleCreateCharacter}
+              onSelect={handleSelectCharacter}
+            />
+          )
+        )}
+      </SettingsPanel>
 
       {/* Floating DM Controls Panel (opens when DM Controls tab is active) */}
       {isDM && (
