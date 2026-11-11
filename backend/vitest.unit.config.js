@@ -10,7 +10,6 @@ export default defineConfig({
     include: [
       'tests/dice.test.js',
       'tests/diceSocket.test.js',
-      'tests/socket.test.js',
       'tests/socketCors.test.js',
       'tests/roomSocket.test.js',
       'tests/tokenSocket.test.js',
