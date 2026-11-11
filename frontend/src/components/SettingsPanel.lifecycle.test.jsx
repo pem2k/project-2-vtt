@@ -468,4 +468,79 @@ describe('SettingsPanel state lifecycle and persistence (#55)', () => {
     const restoredSlider = container.querySelector('.dm-grid-slider-value');
     expect(restoredSlider.textContent).toBe('60px');
   });
+
+  it('preserves character creation draft and HP editor draft across tab switches and close/reopen', async () => {
+    const character = { id: 'c1', name: 'Aria', hp: 10, max_hp: 20, ac: 14, notes: '' };
+    const characters = [character];
+
+    const renderPanel = async (isOpen, activeTab = 'character') => {
+      await act(async () => {
+        root.render(
+          <SettingsPanel
+            isOpen={isOpen}
+            isDM={true}
+            initialTab={activeTab}
+            character={character}
+            characters={characters}
+            onCreateCharacter={vi.fn()}
+            onUpdateCharacterHp={vi.fn()}
+            tokens={[]}
+            members={[]}
+          />,
+        );
+      });
+    };
+
+    // Open on character tab
+    await renderPanel(true, 'character');
+
+    // Type into character create form
+    const nameInput = container.querySelector('#character-name');
+    const maxHpInput = container.querySelector('#character-max-hp');
+    const acInput = container.querySelector('#character-ac');
+    await act(async () => {
+      setInputValue(nameInput, 'Goblin Raider');
+      setInputValue(maxHpInput, '18');
+      setInputValue(acInput, '13');
+    });
+
+    // Type into HP editor
+    const hpInput = container.querySelector('input[name="currentHp"]');
+    await act(async () => {
+      setInputValue(hpInput, '15');
+    });
+
+    // Switch to Users tab
+    const usersTabButton = Array.from(container.querySelectorAll('.dm-tab-button')).find(
+      (b) => b.textContent === 'Users',
+    );
+    await act(async () => {
+      usersTabButton.click();
+    });
+
+    // Character tab is hidden
+    expect(container.querySelector('.dm-character-tab').hidden).toBe(true);
+
+    // Close panel
+    await renderPanel(false);
+    expect(container.querySelector('#settings-panel').hidden).toBe(true);
+
+    // Reopen panel
+    await renderPanel(true);
+    expect(container.querySelector('#settings-panel').hidden).toBe(false);
+
+    // Switch back to Character tab
+    const charTabButton = Array.from(container.querySelectorAll('.dm-tab-button')).find(
+      (b) => b.textContent === 'Character',
+    );
+    await act(async () => {
+      charTabButton.click();
+    });
+
+    // Drafts survived!
+    expect(container.querySelector('#character-name').value).toBe('Goblin Raider');
+    expect(container.querySelector('#character-max-hp').value).toBe('18');
+    expect(container.querySelector('#character-ac').value).toBe('13');
+    expect(container.querySelector('input[name="currentHp"]').value).toBe('15');
+  });
 });

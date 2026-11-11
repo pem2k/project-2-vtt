@@ -42,6 +42,66 @@
   gap: 0.75rem;
 }
 
+.character-hp-form {
+  margin: 0.25rem 0;
+}
+
+.character-hp-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.character-hp-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.character-hp-input {
+  width: 4.5rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  background: var(--color-background);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+}
+
+.character-hp-max {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.btn-save-hp {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.character-hp-error {
+  margin-top: 0.25rem;
+}
+
+.character-create-section {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-surface);
+}
+
+.character-section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.character-picker-field {
+  margin-bottom: 0.5rem;
+}
+
 .character-card-field {
   display: grid;
   gap: 0.35rem;

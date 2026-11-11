@@ -114,4 +114,62 @@ describe('characters RLS, update_character, one-per-player trigger', () => {
     });
     expect(error).not.toBeNull();
   });
+
+  it('update_character rejects negative HP or HP exceeding max_hp', async () => {
+    const { error: negError } = await player1.rpc('update_character', {
+      p_character_id: ariaChar.id,
+      p_hp: -1,
+    });
+    expect(negError).not.toBeNull();
+
+    const { error: overError } = await player1.rpc('update_character', {
+      p_character_id: ariaChar.id,
+      p_hp: 999,
+    });
+    expect(overError).not.toBeNull();
+  });
+
+  it('update_character preserves name, max_hp, ac, and notes when updating only HP', async () => {
+    const { data, error } = await player1.rpc('update_character', {
+      p_character_id: ariaChar.id,
+      p_hp: 15,
+    });
+    expect(error).toBeNull();
+    const row = Array.isArray(data) ? data[0] : data;
+    expect(row.hp).toBe(15);
+    expect(row.name).toBe('Aria the Rogue');
+    expect(row.max_hp).toBe(25);
+    expect(row.ac).toBe(16);
+    expect(row.notes).toBe('DM adjusted');
+  });
+
+  it('direct DM update rejects HP below 0 or above max_hp via check constraint', async () => {
+    const { error: negError } = await dm
+      .from('characters')
+      .update({ hp: -5 })
+      .eq('id', goblinBoss.id);
+    expect(negError).not.toBeNull();
+
+    const { error: overError } = await dm
+      .from('characters')
+      .update({ hp: 50 })
+      .eq('id', goblinBoss.id);
+    expect(overError).not.toBeNull();
+  });
+
+  it('DM can update HP of any character in the room without modifying other fields', async () => {
+    const { data, error } = await dm
+      .from('characters')
+      .update({ hp: 10 })
+      .eq('id', ariaChar.id)
+      .select()
+      .single();
+
+    expect(error).toBeNull();
+    expect(data.hp).toBe(10);
+    expect(data.name).toBe('Aria the Rogue');
+    expect(data.max_hp).toBe(25);
+    expect(data.ac).toBe(16);
+    expect(data.notes).toBe('DM adjusted');
+  });
 });

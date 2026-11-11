@@ -15,38 +15,20 @@ import {
   reconcileTokens,
 } from '../lib/tokens.js';
 import { appendRoll, emitRollDice } from '../lib/dice.js';
-import { createCharacter, getMyCharacter, getRoomCharacters } from '../lib/characters.js';
+import {
+  createCharacter,
+  getMyCharacter,
+  getRoomCharacters,
+  updateCharacterHp,
+  upsertCharacter,
+  reconcileCharacters,
+  emitCharacterUpdated,
+} from '../lib/characters.js';
 import { useRoomSocket } from '../hooks/useRoomSocket.js';
 import DicePanel from '../components/DicePanel.jsx';
 import SettingsPanel from '../components/SettingsPanel.jsx';
 import Board from '../components/board/Board.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
-
-const CHARACTER_VALIDATION_ERRORS = new Set([
-  'Character name is required.',
-  'Character name must be between 1 and 40 characters.',
-  'Max HP must be an integer of at least 1.',
-  'AC must be an integer of at least 0.',
-]);
-
-/**
- * User-facing character errors. Validation copy is safe to repeat.
- * Database failures often embed uuids, so those stay off the page.
- * @param {unknown} error
- * @param {string} fallback
- * @returns {string}
- */
-function toCharacterError(error, fallback) {
-  const message = typeof error?.message === 'string' ? error.message : '';
-  if (CHARACTER_VALIDATION_ERRORS.has(message)) return message;
-  if (/already has a character/i.test(message)) {
-    return 'You already have a character in this room.';
-  }
-  if (/not a member of room/i.test(message)) {
-    return 'You must be a member of this room to create a character.';
-  }
-  return fallback;
-}
 
 /**
  * DM card to show after a character list load.
@@ -165,17 +147,20 @@ export default function GamePage() {
       if (dm) {
         const roomCharacters = await getRoomCharacters(supabase, roomId);
         if (!stillCurrent()) return;
-        const next = chooseVisibleCharacter(
-          roomCharacters,
-          user.id,
-          selectedCharacterIdRef.current,
-        );
+        const reconciled = reconcileCharacters(roomCharacters, syncStateRef.current.bufferedEvents);
+        const next = chooseVisibleCharacter(reconciled, user.id, selectedCharacterIdRef.current);
         selectedCharacterIdRef.current = next?.id ?? null;
-        setCharacters(roomCharacters);
+        setCharacters(reconciled);
         setCharacter(next);
       } else {
-        const mine = await getMyCharacter(supabase, roomId, user.id);
+        let mine = await getMyCharacter(supabase, roomId, user.id);
         if (!stillCurrent()) return;
+        const bufferedUpdate = [...syncStateRef.current.bufferedEvents]
+          .reverse()
+          .find((ev) => ev.type === 'characterUpdated' && ev.character?.user_id === user.id);
+        if (bufferedUpdate?.character) {
+          mine = bufferedUpdate.character;
+        }
         selectedCharacterIdRef.current = mine?.id ?? null;
         setCharacter(mine);
         setCharacters([]);
@@ -411,6 +396,46 @@ export default function GamePage() {
     };
   }, [socket]);
 
+  // Subscribe to real-time character updates broadcast by room members (#14)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleRemoteCharacterUpdated = (characterRow) => {
+      if (!characterRow || characterRow.room_id !== roomIdRef.current) return;
+
+      if (syncStateRef.current.inFlight) {
+        syncStateRef.current.bufferedEvents.push({
+          type: 'characterUpdated',
+          character: characterRow,
+        });
+      }
+
+      const dm = isDMRef.current;
+      const currentUserId = currentUserRef.current?.id;
+
+      if (dm) {
+        setCharacters((prev) => upsertCharacter(prev, characterRow));
+        if (selectedCharacterIdRef.current === characterRow.id) {
+          setCharacter(characterRow);
+        } else if (!selectedCharacterIdRef.current) {
+          selectedCharacterIdRef.current = characterRow.id;
+          setCharacter(characterRow);
+        }
+      } else {
+        if (characterRow.user_id === currentUserId) {
+          selectedCharacterIdRef.current = characterRow.id;
+          setCharacter(characterRow);
+        }
+      }
+    };
+
+    socket.on('characterUpdated', handleRemoteCharacterUpdated);
+
+    return () => {
+      socket.off('characterUpdated', handleRemoteCharacterUpdated);
+    };
+  }, [socket]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -444,26 +469,123 @@ export default function GamePage() {
 
   const handleCreateCharacter = async ({ name, maxHp, ac }) => {
     if (!currentUser) {
-      setCharacterError('Unable to create character.');
-      return;
+      throw new Error('Unable to create character.');
     }
 
+    const initiatingRoomId = roomId;
+    const initiatingVisitId = roomVisitRef.current;
+    characterRequestRef.current++;
+
+    let created;
     try {
-      const created = await createCharacter(supabase, {
-        roomId,
+      setActionError(null);
+      created = await createCharacter(supabase, {
+        roomId: initiatingRoomId,
         userId: currentUser.id,
         name,
         maxHp,
         ac,
       });
-      selectedCharacterIdRef.current = created?.id ?? null;
-      setCharacter(created);
-      setCharacters((prev) => [...prev, created]);
-      setCharacterError(null);
     } catch (err) {
       console.error('Failed to create character.', err?.code ?? '');
-      setCharacterError(toCharacterError(err, 'Unable to create character.'));
+      throw err;
     }
+
+    if (
+      !isMountedRef.current ||
+      roomIdRef.current !== initiatingRoomId ||
+      roomVisitRef.current !== initiatingVisitId
+    ) {
+      return created;
+    }
+
+    if (syncStateRef.current.inFlight) {
+      syncStateRef.current.bufferedEvents.push({
+        type: 'characterUpdated',
+        character: created,
+      });
+    }
+
+    selectedCharacterIdRef.current = created?.id ?? null;
+    setCharacter(created);
+    setCharacters((prev) => upsertCharacter(prev, created));
+    setCharacterError(null);
+
+    try {
+      await emitCharacterUpdated(socket, {
+        roomId: initiatingRoomId,
+        characterId: created.id,
+      });
+    } catch (syncErr) {
+      if (
+        !isMountedRef.current ||
+        roomIdRef.current !== initiatingRoomId ||
+        roomVisitRef.current !== initiatingVisitId
+      ) {
+        return created;
+      }
+      console.warn('Socket characterUpdated sync failed:', syncErr);
+      setActionError('Character created, but failed to sync with other players.');
+    }
+
+    return created;
+  };
+
+  const handleUpdateHp = async (characterId, newHp) => {
+    const initiatingRoomId = roomId;
+    const initiatingVisitId = roomVisitRef.current;
+
+    let updated;
+    try {
+      setActionError(null);
+      updated = await updateCharacterHp(supabase, {
+        characterId,
+        hp: newHp,
+        isDM: isDMRef.current,
+      });
+    } catch (err) {
+      console.error('Failed to update character HP.', err?.code ?? '');
+      throw err;
+    }
+
+    if (
+      !isMountedRef.current ||
+      roomIdRef.current !== initiatingRoomId ||
+      roomVisitRef.current !== initiatingVisitId
+    ) {
+      return updated;
+    }
+
+    if (syncStateRef.current.inFlight) {
+      syncStateRef.current.bufferedEvents.push({
+        type: 'characterUpdated',
+        character: updated,
+      });
+    }
+
+    setCharacters((prev) => upsertCharacter(prev, updated));
+    if (selectedCharacterIdRef.current === updated.id) {
+      setCharacter(updated);
+    }
+
+    try {
+      await emitCharacterUpdated(socket, {
+        roomId: initiatingRoomId,
+        characterId: updated.id,
+      });
+    } catch (syncErr) {
+      if (
+        !isMountedRef.current ||
+        roomIdRef.current !== initiatingRoomId ||
+        roomVisitRef.current !== initiatingVisitId
+      ) {
+        return updated;
+      }
+      console.warn('Socket characterUpdated sync failed:', syncErr);
+      setActionError('Character HP saved, but failed to sync update with other players.');
+    }
+
+    return updated;
   };
 
   const handleMapUploaded = (mapRecord) => {
@@ -689,6 +811,7 @@ export default function GamePage() {
         characters={characters}
         onCreateCharacter={handleCreateCharacter}
         onSelectCharacter={handleSelectCharacter}
+        onUpdateCharacterHp={handleUpdateHp}
         characterLoading={characterLoading}
         characterError={characterError}
         characterReady={characterReady}

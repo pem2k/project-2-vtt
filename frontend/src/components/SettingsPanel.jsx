@@ -30,6 +30,7 @@ export default function SettingsPanel({
   characters = [],
   onCreateCharacter,
   onSelectCharacter,
+  onUpdateCharacterHp,
   characterLoading = false,
   characterError = null,
   characterReady = true,
@@ -211,6 +212,7 @@ export default function SettingsPanel({
               isDM={isDM}
               onCreate={onCreateCharacter}
               onSelect={onSelectCharacter}
+              onUpdateHp={onUpdateCharacterHp}
               characterLoading={characterLoading}
               characterError={characterError}
               characterReady={characterReady}
