@@ -82,6 +82,63 @@ describe('dice socket events', () => {
     expect(result).toBeLessThanOrEqual(20);
   });
 
+  it('accepts dice notation (2d6+5), rolls multiple dice, applies modifier, and broadcasts result', () => {
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.2) // d6 -> 2
+      .mockReturnValueOnce(0.7); // d6 -> 5
+    const { io, socket } = connect();
+
+    const ack = roll(socket, { roomId: 'room-1', notation: '2d6+5' });
+
+    expect(ack).toHaveBeenCalledWith({ ok: true });
+    expect(io.to).toHaveBeenCalledWith('room-1');
+    expect(io._broadcastEmit).toHaveBeenCalledWith('diceResult', {
+      roomId: 'room-1',
+      playerName: 'Aria',
+      notation: '2d6+5',
+      rolls: [2, 5],
+      modifier: 5,
+      total: 12,
+      result: 12,
+      die: '2d6+5',
+    });
+  });
+
+  it('accepts dice notation with negative modifier (1d20-2)', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.4); // d20 -> 9
+    const { io, socket } = connect();
+
+    const ack = roll(socket, { roomId: 'room-1', notation: '1d20-2' });
+
+    expect(ack).toHaveBeenCalledWith({ ok: true });
+    expect(io.to).toHaveBeenCalledWith('room-1');
+    expect(io._broadcastEmit).toHaveBeenCalledWith('diceResult', {
+      roomId: 'room-1',
+      playerName: 'Aria',
+      notation: '1d20-2',
+      rolls: [9],
+      modifier: -2,
+      total: 7,
+      result: 7,
+      die: '1d20-2',
+    });
+  });
+
+  it.each(['0d20', '1d7', '2d6+abc', 'invalid'])(
+    'rejects invalid notation (%s) and does not broadcast',
+    (notation) => {
+      const { io, socket } = connect();
+      const ack = roll(socket, { roomId: 'room-1', notation });
+
+      expect(ack).toHaveBeenCalledWith({
+        ok: false,
+        error: expect.stringMatching(/invalid (die|dice notation)/i),
+      });
+      expect(io.to).not.toHaveBeenCalled();
+      expect(io._broadcastEmit).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(ALLOWED_DICE)('accepts %s and broadcasts a face from 1 through %i', (die, sides) => {
     vi.spyOn(Math, 'random').mockReturnValue(0.999);
     const { io, socket } = connect();

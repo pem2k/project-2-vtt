@@ -432,9 +432,9 @@ export default function GamePage() {
     };
   }, [socket, roomId]);
 
-  const handleRoll = (die) => {
-    if (!socket?.connected) return;
-    emitRollDice(socket, roomId, die);
+  const handleRoll = (notationOrDie) => {
+    if (!socket) return;
+    emitRollDice(socket, roomId, notationOrDie);
   };
 
   const handleSelectCharacter = (next) => {
@@ -700,6 +700,7 @@ export default function GamePage() {
             isDMModalOpen={isDMModalOpen}
             onToggleDMControls={() => setIsDMModalOpen((prev) => !prev)}
             rolls={rolls}
+            onRoll={handleRoll}
           />
           <DicePanel onRoll={handleRoll} disabled={!socket?.connected} />
         </div>
