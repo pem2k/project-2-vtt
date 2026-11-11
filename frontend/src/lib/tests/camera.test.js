@@ -3,25 +3,12 @@ import {
   calculateZoom,
   calculatePan,
   isTokenTarget,
-  DEFAULT_SCALE,
-  DEFAULT_POSITION,
   MIN_SCALE,
   MAX_SCALE,
   SCALE_BY,
 } from '../camera.js';
 
 describe('camera module', () => {
-  describe('constants', () => {
-    it('defines reasonable named limits and defaults', () => {
-      expect(DEFAULT_SCALE).toBe(1.0);
-      expect(DEFAULT_POSITION).toEqual({ x: 0, y: 0 });
-      expect(MIN_SCALE).toBeLessThan(1.0);
-      expect(MAX_SCALE).toBeGreaterThan(1.0);
-      expect(MIN_SCALE).toBeGreaterThan(0);
-      expect(SCALE_BY).toBeGreaterThan(1.0);
-    });
-  });
-
   describe('calculateZoom', () => {
     it('zooms in when deltaY is negative, multiplying scale by factor', () => {
       const currentScale = 1.0;

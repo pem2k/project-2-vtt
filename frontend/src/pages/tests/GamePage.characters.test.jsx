@@ -1,3 +1,4 @@
+import CharacterTab from '../../components/CharacterTab.jsx';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as tokensLib from '../../lib/tokens.js';
@@ -10,6 +11,22 @@ vi.mock('../../components/board/Board.jsx', () => ({
 
 vi.mock('../../components/ChatPanel.jsx', () => ({
   default: () => <div data-testid="chat-panel" />,
+}));
+
+vi.mock('../../components/SettingsPanel.jsx', () => ({
+  default: (props) => (
+    <CharacterTab
+      character={props.character}
+      characters={props.characters}
+      isDM={props.isDM}
+      onCreate={props.onCreateCharacter}
+      onSelect={props.onSelectCharacter}
+      onUpdateHp={props.onUpdateCharacterHp}
+      characterLoading={props.characterLoading}
+      characterError={props.characterError}
+      characterReady={props.characterReady}
+    />
+  ),
 }));
 
 describe('GamePage character workflows and synchronization', () => {

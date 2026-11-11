@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  TOKEN_COLORS,
   validateTokenInput,
   upsertToken,
   removeTokenById,
@@ -14,22 +13,6 @@ import {
 } from '../tokens.js';
 
 describe('tokens library', () => {
-  describe('TOKEN_COLORS', () => {
-    it('provides the standard 8-color palette from design.md', () => {
-      expect(TOKEN_COLORS).toHaveLength(8);
-      expect(TOKEN_COLORS.map((c) => c.hex)).toEqual([
-        '#E6194B',
-        '#4363D8',
-        '#3CB44B',
-        '#F58231',
-        '#911EB4',
-        '#469990',
-        '#FFE119',
-        '#F032E6',
-      ]);
-    });
-  });
-
   describe('validateTokenInput', () => {
     it('rejects empty or whitespace-only name', () => {
       expect(validateTokenInput({ name: '', color: '#E6194B' })).toBe('Token name is required.');

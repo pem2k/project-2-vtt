@@ -22,9 +22,18 @@ vi.mock('react-konva', () => {
       );
     },
     Circle: ({ radius, fill, dash }) => (
-      <div data-testid="token-circle" data-radius={radius} data-fill={fill} data-dash={dash} />
+      <div
+        data-testid="token-circle"
+        data-radius={radius}
+        data-fill={fill}
+        data-dash={dash ? dash.join(',') : undefined}
+      />
     ),
-    Text: ({ text }) => <div data-testid="token-text">{text}</div>,
+    Text: ({ text, fill, stroke }) => (
+      <div data-testid="token-text" data-fill={fill} data-stroke={stroke}>
+        {text}
+      </div>
+    ),
   };
 });
 
@@ -46,6 +55,20 @@ describe('Token component permissions and drag', () => {
     y: 5,
     assigned_to: null,
   };
+
+  it('renders high-contrast white text label with black outline and dashed circle for unassigned tokens', () => {
+    // Assigned token
+    const assignedMarkup = renderToStaticMarkup(
+      <Token token={token} cellSize={50} currentUserId="user-player-1" />,
+    );
+    expect(assignedMarkup).toContain('data-fill="#ffffff"');
+    expect(assignedMarkup).toContain('data-stroke="#000000"');
+    expect(assignedMarkup).not.toContain('data-dash="4,3"');
+
+    // Unassigned token
+    const unassignedMarkup = renderToStaticMarkup(<Token token={unassignedToken} cellSize={50} />);
+    expect(unassignedMarkup).toContain('data-dash="4,3"');
+  });
 
   it('is NOT draggable when socket is not ready even for DM or owner', () => {
     // DM, not ready

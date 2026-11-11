@@ -1,6 +1,5 @@
-/* Keep the board inside the center column when the sidebars share a ~1024px window. */
+/* Responsive layout adjustments for right column, card, and dice controls (#55). */
 @media (max-width: 1320px) {
-  .character-sidebar,
   .game-right-column {
     width: 200px;
     flex-basis: 200px;
@@ -8,13 +7,11 @@
 }
 
 @media (max-width: 1100px) {
-  .character-sidebar,
   .game-right-column {
     width: 180px;
     flex-basis: 180px;
   }
 
-  .character-sidebar-body,
   .character-card {
     padding: 0.5rem;
   }

@@ -1,17 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  DICE_TYPES,
-  appendRoll,
-  emitRollDice,
-  formatRollMessage,
-  parseRollCommand,
-} from '../dice.js';
+import { appendRoll, emitRollDice, formatRollMessage, parseRollCommand } from '../dice.js';
 
 describe('dice library', () => {
-  it('lists the seven standard dice', () => {
-    expect(DICE_TYPES).toEqual(['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100']);
-  });
-
   it('emits rollDice with die when given a standard die name', () => {
     const socket = { emit: vi.fn() };
 

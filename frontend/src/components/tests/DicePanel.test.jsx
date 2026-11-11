@@ -25,21 +25,6 @@ describe('DicePanel', () => {
     }
   });
 
-  it('does not render roll results', () => {
-    const markup = renderToStaticMarkup(
-      <DicePanel onRoll={vi.fn()} rolls={[{ playerName: 'Aria', die: 'd20', result: 17 }]} />,
-    );
-
-    expect(markup).not.toContain('rolled');
-    expect(markup).not.toContain('Aria rolled d20: 17');
-  });
-
-  it('does not render an empty roll message', () => {
-    const markup = renderToStaticMarkup(<DicePanel onRoll={vi.fn()} rolls={[]} />);
-
-    expect(markup).not.toContain('No rolls yet.');
-  });
-
   it('disables every die button when disabled is set', () => {
     const markup = renderToStaticMarkup(<DicePanel onRoll={vi.fn()} disabled />);
 

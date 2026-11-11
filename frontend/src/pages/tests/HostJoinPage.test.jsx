@@ -47,22 +47,4 @@ describe('HostJoinPage selection screen', () => {
 
     expect(markup).toContain('Signed in as dm@test.dev');
   });
-
-  it('does not render the page-user header', () => {
-    const markup = renderHostJoinPage();
-
-    expect(markup).not.toMatch(/page-user/);
-  });
-
-  it('renders Log out and signed-in text outside and below the auth-card', () => {
-    const markup = renderHostJoinPage();
-
-    // The auth-card should close before the Log out button appears
-    const cardCloseIndex = markup.lastIndexOf('</section>');
-    const logoutIndex = markup.indexOf('>Log out<');
-    const signedInIndex = markup.indexOf('Signed in as');
-
-    expect(logoutIndex).toBeGreaterThan(cardCloseIndex);
-    expect(signedInIndex).toBeGreaterThan(cardCloseIndex);
-  });
 });

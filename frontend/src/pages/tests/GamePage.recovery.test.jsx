@@ -5,11 +5,11 @@ import * as mapsLib from '../../lib/maps.js';
 import * as charactersLib from '../../lib/characters.js';
 import { createGamePageHarness, deferred } from '../../test/gamePageHarness.jsx';
 
-let latestDMProps = {};
-vi.mock('../../components/DMControls.jsx', () => ({
+let latestSettingsProps = {};
+vi.mock('../../components/SettingsPanel.jsx', () => ({
   default: (props) => {
-    latestDMProps = props;
-    return <div data-testid="dm-controls" />;
+    latestSettingsProps = props;
+    return <div data-testid="settings-panel" />;
   },
 }));
 
@@ -33,7 +33,7 @@ describe('GamePage board snapshot and reconnect recovery', () => {
   let harness;
 
   beforeEach(() => {
-    latestDMProps = {};
+    latestSettingsProps = {};
     harness = createGamePageHarness();
     vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(null);
     vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([]);
@@ -158,11 +158,11 @@ describe('GamePage board snapshot and reconnect recovery', () => {
     await harness.render('/game/room-123');
 
     // While snapshots are in-flight, execute local token add and local map selection:
-    expect(latestDMProps.onAddToken).toEqual(expect.any(Function));
-    expect(latestDMProps.onSelectActiveMap).toEqual(expect.any(Function));
+    expect(latestSettingsProps.onAddToken).toEqual(expect.any(Function));
+    expect(latestSettingsProps.onSelectActiveMap).toEqual(expect.any(Function));
     await act(async () => {
-      await latestDMProps.onAddToken('Drizzt', '#3CB44B');
-      latestDMProps.onSelectActiveMap({ id: 'map-new', url: 'https://new-map.png' });
+      await latestSettingsProps.onAddToken('Drizzt', '#3CB44B');
+      latestSettingsProps.onSelectActiveMap({ id: 'map-new', url: 'https://new-map.png' });
     });
 
     // Now resolve the older database snapshot:

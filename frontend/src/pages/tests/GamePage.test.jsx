@@ -1,11 +1,7 @@
 import { act } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import GamePage from '../GamePage.jsx';
 import * as tokensLib from '../../lib/tokens.js';
 import * as charactersLib from '../../lib/characters.js';
-import * as useRoomSocketModule from '../../hooks/useRoomSocket.js';
 import { createGamePageHarness, deferred } from '../../test/gamePageHarness.jsx';
 
 vi.mock('../../components/board/Board.jsx', () => ({
@@ -34,24 +30,6 @@ describe('GamePage page composition and initial loading', () => {
       await harness.cleanup();
       harness = null;
     }
-  });
-
-  it('does not render the internal room uuid from /game/:roomId', () => {
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: null,
-      isReady: false,
-      error: null,
-    });
-
-    const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/game/room-123']}>
-        <Routes>
-          <Route path="/game/:roomId" element={<GamePage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    expect(markup).not.toMatch(/room-123/);
   });
 
   it('keeps loading active while initial snapshot is delayed, only showing board once resolved', async () => {

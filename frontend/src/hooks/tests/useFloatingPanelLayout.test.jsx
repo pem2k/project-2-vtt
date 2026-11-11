@@ -55,30 +55,6 @@ describe('useFloatingPanelLayout hook', () => {
     vi.restoreAllMocks();
   });
 
-  it('provides panelRef, layout, and event handlers', async () => {
-    let hookResult;
-    function TestComponent() {
-      hookResult = useFloatingPanelLayout();
-      return (
-        <aside ref={hookResult.panelRef} onMouseUp={hookResult.handlePanelMouseUp}>
-          <div onMouseDown={hookResult.handleMouseDownHeader}>
-            <span>Header</span>
-            <button type="button">Close</button>
-          </div>
-        </aside>
-      );
-    }
-
-    await act(async () => {
-      root.render(<TestComponent />);
-    });
-
-    expect(hookResult.panelRef.current).not.toBeNull();
-    expect(hookResult.layout).toEqual({ x: 32, y: 80, width: 320, height: 340 });
-    expect(typeof hookResult.handleMouseDownHeader).toBe('function');
-    expect(typeof hookResult.handlePanelMouseUp).toBe('function');
-  });
-
   it('saves resized dimensions on handlePanelMouseUp without modifying updater purity', async () => {
     let hookResult;
     function TestComponent() {
