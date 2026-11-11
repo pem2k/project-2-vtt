@@ -1,9 +1,44 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import DMControls from './DMControls.jsx';
+import SettingsPanel from './SettingsPanel.jsx';
 
-describe('DMControls tokens tab', () => {
+describe('SettingsPanel role-aware tabs and accessibility (#55)', () => {
+  it('renders only the Character tab for players and omits DM tabs', () => {
+    const markup = renderToStaticMarkup(
+      <SettingsPanel isOpen={true} isDM={false} initialTab="character" />,
+    );
+
+    // Visible title and accessible labels
+    expect(markup).toContain('<h2>Settings</h2>');
+    expect(markup).toContain('aria-label="Settings Panel"');
+    expect(markup).toContain('aria-label="Close Settings"');
+
+    // Only Character tab button is rendered
+    expect(markup).toContain('Character');
+    expect(markup).not.toContain('>Users<');
+    expect(markup).not.toContain('>Maps<');
+    expect(markup).not.toContain('>Tokens<');
+
+    // DM tab contents are not mounted in markup
+    expect(markup).not.toContain('dm-maps-tab');
+    expect(markup).not.toContain('dm-tokens-tab');
+    expect(markup).not.toContain('dm-users-tab');
+  });
+
+  it('renders Character, Users, Maps, and Tokens tabs for DMs', () => {
+    const markup = renderToStaticMarkup(
+      <SettingsPanel isOpen={true} isDM={true} initialTab="character" />,
+    );
+
+    expect(markup).toContain('>Character<');
+    expect(markup).toContain('>Users<');
+    expect(markup).toContain('>Maps<');
+    expect(markup).toContain('>Tokens<');
+  });
+});
+
+describe('SettingsPanel tokens tab for DM', () => {
   it('renders the tokens form and token list with accessible controls', () => {
     const tokens = [
       { id: 'token-1', name: 'Goblin Scout', color: '#E6194B' },
@@ -11,8 +46,9 @@ describe('DMControls tokens tab', () => {
     ];
 
     const markup = renderToStaticMarkup(
-      <DMControls
+      <SettingsPanel
         isOpen={true}
+        isDM={true}
         initialTab="tokens"
         tokens={tokens}
         onAddToken={vi.fn()}
@@ -53,8 +89,9 @@ describe('DMControls tokens tab', () => {
     const onAssignToken = vi.fn();
 
     const markup = renderToStaticMarkup(
-      <DMControls
+      <SettingsPanel
         isOpen={true}
+        isDM={true}
         initialTab="tokens"
         tokens={tokens}
         members={members}

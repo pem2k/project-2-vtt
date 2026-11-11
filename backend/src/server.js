@@ -6,6 +6,7 @@ import { registerConnectionLogging } from './sockets/connectionLogging.js';
 import { registerJoinRoom, registerSocketAuth } from './sockets/roomSocket.js';
 import { registerDiceEvents } from './sockets/diceSocket.js';
 import { registerTokenEvents } from './sockets/tokenSocket.js';
+import { registerCharacterEvents } from './sockets/characterSocket.js';
 import { loadBackendEnv } from './utils/supabaseConfig.js';
 
 // CORS is enforced by the browser, so the Socket.IO server must explicitly
@@ -39,6 +40,7 @@ export function createServer({ io: providedIo, logger = console.log } = {}) {
   registerJoinRoom(io, { logger });
   registerTokenEvents(io);
   registerDiceEvents(io);
+  registerCharacterEvents(io);
 
   return { app, httpServer, io };
 }

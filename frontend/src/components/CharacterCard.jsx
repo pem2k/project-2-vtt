@@ -1,157 +1,134 @@
-import React, { useState } from 'react';
-import { validateCharacterInput } from '../lib/characters.js';
+import React, { useEffect, useRef, useState } from 'react';
+import { toFriendlyCharacterError, validateHpInput } from '../lib/characters.js';
 
 /**
- * Parse a form field into an integer.
- * Rejects blanks, decimals, and other non-integer text so validation can explain why.
- * @param {string} value
- * @returns {number}
- */
-function parseIntegerInput(value) {
-  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
-    return Number.NaN;
-  }
-  return Number.parseInt(value.trim(), 10);
-}
-
-/**
- * Character card (#13). Display and create only.
- * Props stay narrow so issue #14 can add HP, notes, and AC editing later.
+ * CharacterCard component (#13, #14).
+ * Displays character details (name, AC, notes) and provides the current-HP editor.
  *
- * @param {object|null} character - The card to show. Null renders the create form.
- * @param {Array} characters - Room characters. DMs with more than one get a picker.
- * @param {boolean} isDM
- * @param {(input: { name: string, maxHp: number, ac: number }) => void|Promise<void>} onCreate
- * @param {(character: object) => void} onSelect - Called with the chosen character row.
+ * @param {object} props
+ * @param {object|null} props.character - The character to display.
+ * @param {(characterId: string, hp: number) => Promise<object>} [props.onUpdateHp]
  */
-export default function CharacterCard({
-  character = null,
-  characters = [],
-  isDM = false,
-  onCreate,
-  onSelect,
-}) {
-  const [name, setName] = useState('');
-  const [maxHp, setMaxHp] = useState('');
-  const [ac, setAc] = useState('');
-  const [formError, setFormError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+export default function CharacterCard({ character = null, onUpdateHp }) {
+  const [prevCharId, setPrevCharId] = useState(character?.id);
+  const [prevHp, setPrevHp] = useState(character?.hp);
+  const [hpDraft, setHpDraft] = useState(() =>
+    character?.hp !== undefined ? String(character.hp) : '',
+  );
+  const [isDirty, setIsDirty] = useState(false);
+  const [hpError, setHpError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const showPicker = isDM && characters.length > 1;
-  const notesText = typeof character?.notes === 'string' ? character.notes : '';
-  const hasNotes = notesText.trim().length > 0;
+  const latestCharIdRef = useRef(character?.id);
+  useEffect(() => {
+    latestCharIdRef.current = character?.id;
+  }, [character?.id]);
 
-  function handleSelectChange(event) {
-    const next = characters.find((item) => item.id === event.target.value);
-    if (next && onSelect) {
-      onSelect(next);
+  if (character && character.id !== prevCharId) {
+    // Selected character changed: reset to new character's state
+    setPrevCharId(character.id);
+    setPrevHp(character.hp);
+    setHpDraft(character.hp !== undefined ? String(character.hp) : '');
+    setIsDirty(false);
+    setHpError(null);
+    setSaving(false);
+  } else if (character && character.hp !== prevHp) {
+    // Background update for the same character:
+    // Only overwrite if the user has NOT actively edited a dirty draft
+    setPrevHp(character.hp);
+    if (!isDirty) {
+      setHpDraft(character.hp !== undefined ? String(character.hp) : '');
     }
   }
 
-  async function handleSubmit(event) {
+  if (!character) {
+    return null;
+  }
+
+  const notesText = typeof character.notes === 'string' ? character.notes : '';
+  const hasNotes = notesText.trim().length > 0;
+
+  async function handleSaveHp(event) {
     event.preventDefault();
-    const parsedMaxHp = parseIntegerInput(maxHp);
-    const parsedAc = parseIntegerInput(ac);
-    const validationError = validateCharacterInput({
-      name,
-      maxHp: parsedMaxHp,
-      ac: parsedAc,
-    });
+    if (saving) return;
+
+    const validationError = validateHpInput(hpDraft, character.max_hp);
     if (validationError) {
-      setFormError(validationError);
+      setHpError(validationError);
       return;
     }
 
-    setFormError(null);
-    setSubmitting(true);
+    const parsedHp = Number.parseInt(String(hpDraft).trim(), 10);
+    setHpError(null);
+    setSaving(true);
+    const targetCharId = character.id;
+
     try {
-      await onCreate?.({
-        name,
-        maxHp: parsedMaxHp,
-        ac: parsedAc,
-      });
-    } catch {
-      // The page shows a friendly message. Keep database text and ids off this card.
+      const updated = await onUpdateHp?.(character.id, parsedHp);
+      if (latestCharIdRef.current === targetCharId) {
+        setIsDirty(false);
+        if (updated && updated.hp !== undefined) {
+          setHpDraft(String(updated.hp));
+        }
+      }
+    } catch (err) {
+      if (latestCharIdRef.current === targetCharId) {
+        setHpError(toFriendlyCharacterError(err, 'Failed to update HP.'));
+      }
     } finally {
-      setSubmitting(false);
+      if (latestCharIdRef.current === targetCharId) {
+        setSaving(false);
+      }
     }
   }
 
   return (
     <article className="character-card">
-      {showPicker && (
-        <div className="character-card-field">
-          <label htmlFor="character-card-picker">View character</label>
-          <select
-            id="character-card-picker"
-            value={character?.id ?? ''}
-            onChange={handleSelectChange}
-          >
-            {!character?.id && <option value="">Select a character</option>}
-            {characters.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="character-card-body">
+        <h2 className="character-card-name">{character.name}</h2>
 
-      {character ? (
-        <div className="character-card-body">
-          <h2 className="character-card-name">{character.name}</h2>
-          <p className="character-card-stat">
-            HP {character.hp} / {character.max_hp}
-          </p>
-          <p className="character-card-stat">AC {character.ac}</p>
-          <p className={hasNotes ? 'character-card-notes' : 'character-card-notes is-empty'}>
-            {hasNotes ? notesText : 'No notes'}
-          </p>
-        </div>
-      ) : (
-        <form className="character-card-form" onSubmit={handleSubmit}>
-          <div className="character-card-field">
-            <label htmlFor="character-name">Name</label>
-            <input
-              id="character-name"
-              name="name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
+        <p className="character-card-stat">
+          HP {character.hp} / {character.max_hp}
+        </p>
+
+        <form className="character-hp-form" onSubmit={handleSaveHp}>
+          <div className="character-hp-editor">
+            <label htmlFor={`character-hp-${character.id}`} className="character-hp-label">
+              Current HP
+            </label>
+            <div className="character-hp-input-group">
+              <input
+                id={`character-hp-${character.id}`}
+                name="currentHp"
+                type="text"
+                inputMode="numeric"
+                className="character-hp-input"
+                value={hpDraft}
+                disabled={saving}
+                onChange={(e) => {
+                  setHpDraft(e.target.value);
+                  setIsDirty(true);
+                  setHpError(null);
+                }}
+              />
+              <span className="character-hp-max">/ {character.max_hp}</span>
+              <button type="submit" className="btn btn-save-hp" disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
-          <div className="character-card-field">
-            <label htmlFor="character-max-hp">Max HP</label>
-            <input
-              id="character-max-hp"
-              name="maxHp"
-              type="text"
-              inputMode="numeric"
-              value={maxHp}
-              onChange={(event) => setMaxHp(event.target.value)}
-            />
-          </div>
-          <div className="character-card-field">
-            <label htmlFor="character-ac">AC</label>
-            <input
-              id="character-ac"
-              name="ac"
-              type="text"
-              inputMode="numeric"
-              value={ac}
-              onChange={(event) => setAc(event.target.value)}
-            />
-          </div>
-          {formError && (
-            <p className="auth-error" role="alert">
-              {formError}
+          {hpError && (
+            <p className="auth-error character-hp-error" role="alert">
+              {hpError}
             </p>
           )}
-          <button className="btn" type="submit" disabled={submitting}>
-            Create character
-          </button>
         </form>
-      )}
+
+        <p className="character-card-stat">AC {character.ac}</p>
+        <p className={hasNotes ? 'character-card-notes' : 'character-card-notes is-empty'}>
+          {hasNotes ? notesText : 'No notes'}
+        </p>
+      </div>
     </article>
   );
 }
