@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { createMockAckSocket, createMockSupabase } from '../../test/supabaseMock.js';
 import {
   validateCharacterInput,
   validateHpInput,
@@ -67,39 +68,23 @@ describe('characters library', () => {
 
   describe('getRoomCharacters', () => {
     it('fetches all characters for a room ordered by created_at ascending', async () => {
-      const fakeOrder = vi.fn().mockResolvedValue({
-        data: [
-          { id: 'c1', name: 'Aria', hp: 12, max_hp: 12, ac: 15, notes: '' },
-          { id: 'c2', name: 'Gobbo', hp: 7, max_hp: 10, ac: 10, notes: 'sneaky' },
-        ],
-        error: null,
-      });
-      const fakeEq = vi.fn(() => ({ order: fakeOrder }));
-      const fakeSelect = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ select: fakeSelect })),
-      };
+      const characters = [
+        { id: 'c1', name: 'Aria', hp: 12, max_hp: 12, ac: 15, notes: '' },
+        { id: 'c2', name: 'Gobbo', hp: 7, max_hp: 10, ac: 10, notes: 'sneaky' },
+      ];
+      const fakeSupabase = createMockSupabase({ data: characters });
 
       const result = await getRoomCharacters(fakeSupabase, 'room-1');
       expect(fakeSupabase.from).toHaveBeenCalledWith('characters');
-      expect(fakeSelect).toHaveBeenCalledWith('*');
-      expect(fakeEq).toHaveBeenCalledWith('room_id', 'room-1');
-      expect(fakeOrder).toHaveBeenCalledWith('created_at', { ascending: true });
+      expect(fakeSupabase._spies.select).toHaveBeenCalledWith('*');
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('room_id', 'room-1');
+      expect(fakeSupabase._spies.order).toHaveBeenCalledWith('created_at', { ascending: true });
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe('Aria');
     });
 
     it('throws when supabase returns an error', async () => {
-      const fakeOrder = vi.fn().mockResolvedValue({
-        data: null,
-        error: new Error('RLS denied'),
-      });
-      const fakeEq = vi.fn(() => ({ order: fakeOrder }));
-      const fakeSelect = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ select: fakeSelect })),
-      };
-
+      const fakeSupabase = createMockSupabase({ error: new Error('RLS denied') });
       await expect(getRoomCharacters(fakeSupabase, 'room-1')).rejects.toThrow('RLS denied');
     });
   });
@@ -107,32 +92,21 @@ describe('characters library', () => {
   describe('getMyCharacter', () => {
     it('returns the character for the given user and room', async () => {
       const character = { id: 'c1', name: 'Aria', hp: 12, max_hp: 12, ac: 15, notes: '' };
-      const fakeMaybeSingle = vi.fn().mockResolvedValue({ data: character, error: null });
-      const fakeEqUser = vi.fn(() => ({ maybeSingle: fakeMaybeSingle }));
-      const fakeEqRoom = vi.fn(() => ({ eq: fakeEqUser }));
-      const fakeSelect = vi.fn(() => ({ eq: fakeEqRoom }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ select: fakeSelect })),
-      };
+      const fakeSupabase = createMockSupabase({ data: character });
 
       const result = await getMyCharacter(fakeSupabase, 'room-1', 'user-1');
       expect(fakeSupabase.from).toHaveBeenCalledWith('characters');
-      expect(fakeSelect).toHaveBeenCalledWith('*');
-      expect(fakeEqRoom).toHaveBeenCalledWith('room_id', 'room-1');
-      expect(fakeEqUser).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(fakeSupabase._spies.select).toHaveBeenCalledWith('*');
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('room_id', 'room-1');
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(fakeSupabase._spies.maybeSingle).toHaveBeenCalled();
       expect(result).toEqual(character);
     });
 
     it('returns null when no character exists', async () => {
-      const fakeMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-      const fakeEqUser = vi.fn(() => ({ maybeSingle: fakeMaybeSingle }));
-      const fakeEqRoom = vi.fn(() => ({ eq: fakeEqUser }));
-      const fakeSelect = vi.fn(() => ({ eq: fakeEqRoom }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ select: fakeSelect })),
-      };
-
+      const fakeSupabase = createMockSupabase({ data: null });
       const result = await getMyCharacter(fakeSupabase, 'room-1', 'user-1');
+      expect(fakeSupabase._spies.maybeSingle).toHaveBeenCalled();
       expect(result).toBeNull();
     });
   });
@@ -149,12 +123,7 @@ describe('characters library', () => {
         ac: 14,
         notes: '',
       };
-      const fakeSingle = vi.fn().mockResolvedValue({ data: createdRow, error: null });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeInsert = vi.fn(() => ({ select: fakeSelect }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ insert: fakeInsert })),
-      };
+      const fakeSupabase = createMockSupabase({ data: createdRow });
 
       const result = await createCharacter(fakeSupabase, {
         roomId: 'room-1',
@@ -165,7 +134,7 @@ describe('characters library', () => {
       });
 
       expect(fakeSupabase.from).toHaveBeenCalledWith('characters');
-      expect(fakeInsert).toHaveBeenCalledWith({
+      expect(fakeSupabase._spies.insert).toHaveBeenCalledWith({
         room_id: 'room-1',
         user_id: 'user-1',
         name: 'Rogue',
@@ -174,11 +143,13 @@ describe('characters library', () => {
         ac: 14,
         notes: '',
       });
+      expect(fakeSupabase._spies.select).toHaveBeenCalled();
+      expect(fakeSupabase._spies.single).toHaveBeenCalled();
       expect(result).toEqual(createdRow);
     });
 
     it('throws validation error for invalid input', async () => {
-      const fakeSupabase = { from: vi.fn() };
+      const fakeSupabase = createMockSupabase();
       await expect(
         createCharacter(fakeSupabase, {
           roomId: 'room-1',
@@ -191,15 +162,7 @@ describe('characters library', () => {
     });
 
     it('throws when supabase returns an error', async () => {
-      const fakeSingle = vi
-        .fn()
-        .mockResolvedValue({ data: null, error: new Error('Insert failed') });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeInsert = vi.fn(() => ({ select: fakeSelect }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ insert: fakeInsert })),
-      };
-
+      const fakeSupabase = createMockSupabase({ error: new Error('Insert failed') });
       await expect(
         createCharacter(fakeSupabase, {
           roomId: 'room-1',
@@ -241,8 +204,7 @@ describe('characters library', () => {
   describe('updateCharacterHp', () => {
     it('uses update_character RPC for player', async () => {
       const updatedRow = { id: 'c1', hp: 7, max_hp: 20, name: 'Aria' };
-      const fakeRpc = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
-      const fakeSupabase = { rpc: fakeRpc };
+      const fakeSupabase = createMockSupabase({ data: updatedRow });
 
       const result = await updateCharacterHp(fakeSupabase, {
         characterId: 'c1',
@@ -250,7 +212,7 @@ describe('characters library', () => {
         isDM: false,
       });
 
-      expect(fakeRpc).toHaveBeenCalledWith('update_character', {
+      expect(fakeSupabase.rpc).toHaveBeenCalledWith('update_character', {
         p_character_id: 'c1',
         p_hp: 7,
       });
@@ -259,13 +221,7 @@ describe('characters library', () => {
 
     it('uses direct UPDATE on characters table for DM', async () => {
       const updatedRow = { id: 'c2', hp: 5, max_hp: 15, name: 'Goblin' };
-      const fakeSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
-      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ update: fakeUpdate })),
-      };
+      const fakeSupabase = createMockSupabase({ data: updatedRow });
 
       const result = await updateCharacterHp(fakeSupabase, {
         characterId: 'c2',
@@ -274,13 +230,15 @@ describe('characters library', () => {
       });
 
       expect(fakeSupabase.from).toHaveBeenCalledWith('characters');
-      expect(fakeUpdate).toHaveBeenCalledWith({ hp: 5 });
-      expect(fakeEq).toHaveBeenCalledWith('id', 'c2');
+      expect(fakeSupabase._spies.update).toHaveBeenCalledWith({ hp: 5 });
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('id', 'c2');
+      expect(fakeSupabase._spies.select).toHaveBeenCalled();
+      expect(fakeSupabase._spies.single).toHaveBeenCalled();
       expect(result).toEqual(updatedRow);
     });
 
     it('throws validation error when hp is not a valid non-negative integer', async () => {
-      const fakeSupabase = { rpc: vi.fn(), from: vi.fn() };
+      const fakeSupabase = createMockSupabase();
       await expect(
         updateCharacterHp(fakeSupabase, { characterId: 'c1', hp: -1, isDM: false }),
       ).rejects.toThrow('HP must be an integer of at least 0.');
@@ -324,10 +282,7 @@ describe('characters library', () => {
 
   describe('emitCharacterUpdated', () => {
     it('emits characterUpdated with room and character ID and resolves on ok: true', async () => {
-      const socket = {
-        connected: true,
-        emit: vi.fn((event, payload, cb) => cb({ ok: true })),
-      };
+      const socket = createMockAckSocket();
 
       const result = await emitCharacterUpdated(socket, {
         roomId: 'room-1',
@@ -343,17 +298,14 @@ describe('characters library', () => {
     });
 
     it('rejects if socket is disconnected', async () => {
-      const socket = { connected: false };
+      const socket = createMockAckSocket({ connected: false });
       await expect(
         emitCharacterUpdated(socket, { roomId: 'r1', characterId: 'c1' }),
       ).rejects.toThrow(/not connected/i);
     });
 
     it('rejects on error response from server', async () => {
-      const socket = {
-        connected: true,
-        emit: vi.fn((event, payload, cb) => cb({ ok: false, error: 'Not authorized.' })),
-      };
+      const socket = createMockAckSocket({ ok: false, error: 'Not authorized.' });
       await expect(
         emitCharacterUpdated(socket, { roomId: 'r1', characterId: 'c1' }),
       ).rejects.toThrow('Not authorized.');

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createMockAckSocket, createMockSupabase } from '../../test/supabaseMock.js';
 import {
   validateTokenInput,
   upsertToken,
@@ -78,15 +79,15 @@ describe('tokens library', () => {
 
   describe('addToken and removeToken against Supabase client', () => {
     it('addToken validates input and inserts at x:0, y:0, returning the created row', async () => {
-      const fakeSingle = vi.fn().mockResolvedValue({
-        data: { id: 'token-123', room_id: 'room-1', name: 'Rogue', color: '#4363D8', x: 0, y: 0 },
-        error: null,
-      });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeInsert = vi.fn(() => ({ select: fakeSelect }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ insert: fakeInsert })),
+      const createdRow = {
+        id: 'token-123',
+        room_id: 'room-1',
+        name: 'Rogue',
+        color: '#4363D8',
+        x: 0,
+        y: 0,
       };
+      const fakeSupabase = createMockSupabase({ data: createdRow });
 
       const result = await addToken(fakeSupabase, {
         roomId: 'room-1',
@@ -95,93 +96,57 @@ describe('tokens library', () => {
       });
 
       expect(fakeSupabase.from).toHaveBeenCalledWith('tokens');
-      expect(fakeInsert).toHaveBeenCalledWith({
+      expect(fakeSupabase._spies.insert).toHaveBeenCalledWith({
         room_id: 'room-1',
         name: 'Rogue',
         color: '#4363D8',
         x: 0,
         y: 0,
       });
-      expect(result).toEqual({
-        id: 'token-123',
-        room_id: 'room-1',
-        name: 'Rogue',
-        color: '#4363D8',
-        x: 0,
-        y: 0,
-      });
+      expect(fakeSupabase._spies.select).toHaveBeenCalled();
+      expect(fakeSupabase._spies.single).toHaveBeenCalled();
+      expect(result).toEqual(createdRow);
     });
 
     it('addToken throws error when validation fails or supabase returns error', async () => {
-      const fakeSupabase = { from: vi.fn() };
+      const fakeSupabase = createMockSupabase();
       await expect(
         addToken(fakeSupabase, { roomId: 'room-1', name: '', color: '#4363D8' }),
       ).rejects.toThrow('Token name is required.');
 
-      const failSingle = vi.fn().mockResolvedValue({
-        data: null,
-        error: new Error('RLS violation'),
-      });
-      const failSupabase = {
-        from: vi.fn(() => ({
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({ single: failSingle })),
-          })),
-        })),
-      };
-
+      const failSupabase = createMockSupabase({ error: new Error('RLS violation') });
       await expect(
         addToken(failSupabase, { roomId: 'room-1', name: 'Valid', color: '#4363D8' }),
       ).rejects.toThrow('RLS violation');
     });
 
     it('removeToken deletes by id and throws on error', async () => {
-      const fakeEq = vi.fn().mockResolvedValue({ error: null });
-      const fakeDelete = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ delete: fakeDelete })),
-      };
+      const fakeSupabase = createMockSupabase();
 
       await removeToken(fakeSupabase, 'token-123');
       expect(fakeSupabase.from).toHaveBeenCalledWith('tokens');
-      expect(fakeDelete).toHaveBeenCalled();
-      expect(fakeEq).toHaveBeenCalledWith('id', 'token-123');
+      expect(fakeSupabase._spies.delete).toHaveBeenCalled();
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('id', 'token-123');
 
-      const failEq = vi.fn().mockResolvedValue({ error: new Error('Delete failed') });
-      const failSupabase = {
-        from: vi.fn(() => ({ delete: vi.fn(() => ({ eq: failEq })) })),
-      };
+      const failSupabase = createMockSupabase({ error: new Error('Delete failed') });
       await expect(removeToken(failSupabase, 'token-123')).rejects.toThrow('Delete failed');
     });
 
     it('getRoomTokens fetches tokens ordered by created_at ascending', async () => {
-      const fakeOrder = vi.fn().mockResolvedValue({
-        data: [{ id: '1', name: 'Goblin' }],
-        error: null,
-      });
-      const fakeEq = vi.fn(() => ({ order: fakeOrder }));
-      const fakeSelect = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ select: fakeSelect })),
-      };
+      const tokens = [{ id: '1', name: 'Goblin' }];
+      const fakeSupabase = createMockSupabase({ data: tokens });
 
       const result = await getRoomTokens(fakeSupabase, 'room-1');
       expect(fakeSupabase.from).toHaveBeenCalledWith('tokens');
-      expect(fakeSelect).toHaveBeenCalledWith('*');
-      expect(fakeEq).toHaveBeenCalledWith('room_id', 'room-1');
-      expect(fakeOrder).toHaveBeenCalledWith('created_at', { ascending: true });
-      expect(result).toEqual([{ id: '1', name: 'Goblin' }]);
+      expect(fakeSupabase._spies.select).toHaveBeenCalledWith('*');
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('room_id', 'room-1');
+      expect(fakeSupabase._spies.order).toHaveBeenCalledWith('created_at', { ascending: true });
+      expect(result).toEqual(tokens);
     });
 
     it('assignToken updates assigned_to with userId and returns the updated token', async () => {
       const updatedRow = { id: 'token-1', name: 'Aria', assigned_to: 'user-123' };
-      const fakeSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
-      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ update: fakeUpdate })),
-      };
+      const fakeSupabase = createMockSupabase({ data: updatedRow });
 
       const result = await assignToken(fakeSupabase, {
         tokenId: 'token-1',
@@ -189,42 +154,30 @@ describe('tokens library', () => {
       });
 
       expect(fakeSupabase.from).toHaveBeenCalledWith('tokens');
-      expect(fakeUpdate).toHaveBeenCalledWith({ assigned_to: 'user-123' });
-      expect(fakeEq).toHaveBeenCalledWith('id', 'token-1');
-      expect(fakeSelect).toHaveBeenCalled();
-      expect(fakeSingle).toHaveBeenCalled();
+      expect(fakeSupabase._spies.update).toHaveBeenCalledWith({ assigned_to: 'user-123' });
+      expect(fakeSupabase._spies.eq).toHaveBeenCalledWith('id', 'token-1');
+      expect(fakeSupabase._spies.select).toHaveBeenCalled();
+      expect(fakeSupabase._spies.single).toHaveBeenCalled();
       expect(result).toEqual(updatedRow);
     });
 
     it('assignToken passes null through when userId is null or omitted', async () => {
       const updatedRow = { id: 'token-1', name: 'Aria', assigned_to: null };
-      const fakeSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
-      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ update: fakeUpdate })),
-      };
+      const fakeSupabase = createMockSupabase({ data: updatedRow });
 
       const result = await assignToken(fakeSupabase, {
         tokenId: 'token-1',
         userId: null,
       });
 
-      expect(fakeUpdate).toHaveBeenCalledWith({ assigned_to: null });
+      expect(fakeSupabase._spies.update).toHaveBeenCalledWith({ assigned_to: null });
+      expect(fakeSupabase._spies.select).toHaveBeenCalled();
+      expect(fakeSupabase._spies.single).toHaveBeenCalled();
       expect(result).toEqual(updatedRow);
     });
 
     it('assignToken throws error when update fails', async () => {
-      const fakeSingle = vi
-        .fn()
-        .mockResolvedValue({ data: null, error: new Error('Update failed') });
-      const fakeSelect = vi.fn(() => ({ single: fakeSingle }));
-      const fakeEq = vi.fn(() => ({ select: fakeSelect }));
-      const fakeUpdate = vi.fn(() => ({ eq: fakeEq }));
-      const fakeSupabase = {
-        from: vi.fn(() => ({ update: fakeUpdate })),
-      };
+      const fakeSupabase = createMockSupabase({ error: new Error('Update failed') });
 
       await expect(
         assignToken(fakeSupabase, { tokenId: 'token-1', userId: 'user-1' }),
@@ -234,7 +187,7 @@ describe('tokens library', () => {
 
   describe('moveToken and emitMoveToken', () => {
     it('moveToken validates coordinates and token id', async () => {
-      const fakeSupabase = { rpc: vi.fn() };
+      const fakeSupabase = createMockSupabase();
       await expect(moveToken(fakeSupabase, { tokenId: '', x: 1, y: 1 })).rejects.toThrow(
         /token id is required/i,
       );
@@ -252,9 +205,7 @@ describe('tokens library', () => {
 
     it('moveToken calls move_token RPC and returns the updated row', async () => {
       const updatedRow = { id: 't1', name: 'Aria', x: 4.5, y: 6.25, assigned_to: 'u1' };
-      const fakeSupabase = {
-        rpc: vi.fn().mockResolvedValue({ data: updatedRow, error: null }),
-      };
+      const fakeSupabase = createMockSupabase({ data: updatedRow });
 
       const result = await moveToken(fakeSupabase, { tokenId: 't1', x: 4.5, y: 6.25 });
       expect(fakeSupabase.rpc).toHaveBeenCalledWith('move_token', {
@@ -266,11 +217,9 @@ describe('tokens library', () => {
     });
 
     it('moveToken propagates RPC errors', async () => {
-      const fakeSupabase = {
-        rpc: vi
-          .fn()
-          .mockResolvedValue({ data: null, error: new Error('not allowed to move this token') }),
-      };
+      const fakeSupabase = createMockSupabase({
+        error: new Error('not allowed to move this token'),
+      });
 
       await expect(moveToken(fakeSupabase, { tokenId: 't1', x: 2, y: 3 })).rejects.toThrow(
         'not allowed to move this token',
@@ -278,19 +227,14 @@ describe('tokens library', () => {
     });
 
     it('emitMoveToken rejects when socket is not connected', async () => {
-      const disconnectedSocket = { connected: false, emit: vi.fn() };
+      const disconnectedSocket = createMockAckSocket({ connected: false });
       await expect(
         emitMoveToken(disconnectedSocket, { roomId: 'r1', tokenId: 't1' }),
       ).rejects.toThrow(/socket is not connected/i);
     });
 
     it('emitMoveToken resolves on successful ack', async () => {
-      const socket = {
-        connected: true,
-        emit: vi.fn((event, payload, cb) => {
-          cb({ ok: true });
-        }),
-      };
+      const socket = createMockAckSocket();
 
       const res = await emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' });
       expect(socket.emit).toHaveBeenCalledWith(
@@ -302,12 +246,10 @@ describe('tokens library', () => {
     });
 
     it('emitMoveToken rejects with error message when ack fails', async () => {
-      const socket = {
-        connected: true,
-        emit: vi.fn((event, payload, cb) => {
-          cb({ ok: false, error: 'Not authorized to move this token.' });
-        }),
-      };
+      const socket = createMockAckSocket({
+        ok: false,
+        error: 'Not authorized to move this token.',
+      });
 
       await expect(emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' })).rejects.toThrow(
         'Not authorized to move this token.',
@@ -316,10 +258,7 @@ describe('tokens library', () => {
 
     it('emitMoveToken rejects on timeout', async () => {
       vi.useFakeTimers();
-      const socket = {
-        connected: true,
-        emit: vi.fn(), // never calls ack
-      };
+      const socket = createMockAckSocket({ autoAck: false });
 
       const promise = emitMoveToken(socket, { roomId: 'r1', tokenId: 't1' }, { timeout: 100 });
       vi.advanceTimersByTime(101);
