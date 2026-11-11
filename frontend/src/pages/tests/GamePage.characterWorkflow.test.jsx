@@ -4,8 +4,7 @@ import CharacterTab from '../../components/CharacterTab.jsx';
 import * as tokensLib from '../../lib/tokens.js';
 import * as charactersLib from '../../lib/characters.js';
 import { supabase } from '../../lib/supabaseClient.js';
-import * as useRoomSocketModule from '../../hooks/useRoomSocket.js';
-import { createGamePageHarness } from '../../test/gamePageHarness.jsx';
+import { createGamePageHarness, deferred } from '../../test/gamePageHarness.jsx';
 vi.mock('../../components/board/Board.jsx', () => ({ default: () => <div data-testid="board" /> }));
 vi.mock('../../components/ChatPanel.jsx', () => ({
   default: () => <div data-testid="chat-panel" />,
@@ -39,6 +38,7 @@ describe('Character workflow and HP live synchronization (#14)', () => {
   });
 
   function prepareCharacterTest(options = {}) {
+    harness.setupMockRoomSocket();
     harness.mockAuthenticatedGame(options);
     vi.spyOn(tokensLib, 'getRoomTokens').mockResolvedValue([]);
   }
@@ -55,21 +55,47 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     });
   }
 
-  it('allows DM to create two characters consecutively; form remains available and resets only after success', async () => {
-    const socketListeners = {};
-    const mockSocket = {
-      connected: true,
-      on: vi.fn((event, handler) => {
-        socketListeners[event] = handler;
-      }),
-      off: vi.fn(),
-      emit: vi.fn(),
+  function createCharacterFixture(overrides = {}) {
+    return {
+      id: 'char-1',
+      user_id: 'player-1',
+      name: 'Aria',
+      hp: 10,
+      max_hp: 15,
+      ac: 14,
+      notes: '',
+      ...overrides,
     };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
+  }
+
+  async function fillAndSubmitCreateCharacterForm({ name, maxHp, ac }) {
+    const nameInput = harness.container.querySelector('#character-name');
+    const maxHpInput = harness.container.querySelector('#character-max-hp');
+    const acInput = harness.container.querySelector('#character-ac');
+    const form = harness.container.querySelector('form.character-card-form');
+
+    await act(async () => {
+      setInputValue(nameInput, name);
+      setInputValue(maxHpInput, maxHp);
+      setInputValue(acInput, ac);
     });
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+  }
+
+  async function submitHpForm(value) {
+    const hpInput = harness.container.querySelector('input[name="currentHp"]');
+    const hpForm = harness.container.querySelector('form.character-hp-form');
+    await act(async () => {
+      setInputValue(hpInput, String(value));
+    });
+    await act(async () => {
+      hpForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+  }
+
+  it('allows DM to create two characters consecutively; form remains available and resets only after success', async () => {
     prepareCharacterTest({ userId: 'dm-1', role: 'dm' });
     vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([]);
     vi.spyOn(charactersLib, 'emitCharacterUpdated').mockResolvedValue({ ok: true });
@@ -77,7 +103,7 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     let createCallCount = 0;
     vi.spyOn(charactersLib, 'createCharacter').mockImplementation(async (_sb, params) => {
       createCallCount++;
-      return {
+      return createCharacterFixture({
         id: `char-goblin-${createCallCount}`,
         room_id: params.roomId,
         user_id: params.userId,
@@ -85,8 +111,7 @@ describe('Character workflow and HP live synchronization (#14)', () => {
         hp: params.maxHp,
         max_hp: params.maxHp,
         ac: params.ac,
-        notes: '',
-      };
+      });
     });
 
     await harness.render('/game/room-123');
@@ -96,21 +121,13 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     const nameInput = harness.container.querySelector('#character-name');
     const maxHpInput = harness.container.querySelector('#character-max-hp');
     const acInput = harness.container.querySelector('#character-ac');
-    const form = harness.container.querySelector('form.character-card-form');
 
     // Create 1st character: Goblin 1
-    await act(async () => {
-      setInputValue(nameInput, 'Goblin 1');
-      setInputValue(maxHpInput, '10');
-      setInputValue(acInput, '12');
-    });
-    await act(async () => {
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await fillAndSubmitCreateCharacterForm({ name: 'Goblin 1', maxHp: '10', ac: '12' });
 
     // 1st character created and selected
     expect(charactersLib.createCharacter).toHaveBeenCalledTimes(1);
-    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(mockSocket, {
+    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(harness.mockSocket, {
       roomId: 'room-123',
       characterId: 'char-goblin-1',
     });
@@ -125,18 +142,11 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     expect(harness.container.querySelector('.character-create-section')).not.toBeNull();
 
     // Create 2nd character: Goblin 2
-    await act(async () => {
-      setInputValue(nameInput, 'Goblin 2');
-      setInputValue(maxHpInput, '15');
-      setInputValue(acInput, '14');
-    });
-    await act(async () => {
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await fillAndSubmitCreateCharacterForm({ name: 'Goblin 2', maxHp: '15', ac: '14' });
 
     // 2nd character created and selected
     expect(charactersLib.createCharacter).toHaveBeenCalledTimes(2);
-    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(mockSocket, {
+    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(harness.mockSocket, {
       roomId: 'room-123',
       characterId: 'char-goblin-2',
     });
@@ -155,12 +165,6 @@ describe('Character workflow and HP live synchronization (#14)', () => {
   });
 
   it('failed creation preserves draft and displays friendly error', async () => {
-    const mockSocket = { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
-    });
     prepareCharacterTest({ userId: 'dm-1', role: 'dm' });
     vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([]);
     vi.spyOn(charactersLib, 'createCharacter').mockRejectedValue(
@@ -172,17 +176,8 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     const nameInput = harness.container.querySelector('#character-name');
     const maxHpInput = harness.container.querySelector('#character-max-hp');
     const acInput = harness.container.querySelector('#character-ac');
-    const form = harness.container.querySelector('form.character-card-form');
 
-    await act(async () => {
-      setInputValue(nameInput, 'Bugbear');
-      setInputValue(maxHpInput, '25');
-      setInputValue(acInput, '15');
-    });
-
-    await act(async () => {
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await fillAndSubmitCreateCharacterForm({ name: 'Bugbear', maxHp: '25', ac: '15' });
 
     // Form retained draft
     expect(nameInput.value).toBe('Bugbear');
@@ -195,132 +190,78 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     expect(alerts[0].textContent).toBe('Unable to create character.');
   });
 
-  it('DM edits any character current HP via updateCharacterHp and emits socket notification', async () => {
-    const mockSocket = { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
+  it.each([
+    {
+      role: 'dm',
+      userId: 'dm-1',
+      initialHp: 20,
+      maxHp: 20,
+      submittedHp: 12,
+      expectedIsDM: true,
+      description:
+        'DM edits any character current HP via updateCharacterHp and emits socket notification',
+    },
+    {
+      role: 'player',
+      userId: 'player-1',
+      initialHp: 10,
+      maxHp: 15,
+      submittedHp: 5,
+      expectedIsDM: false,
+      description:
+        'Player edits own current HP via updateCharacterHp and emits socket notification',
+    },
+  ])('$description', async ({ role, userId, initialHp, maxHp, submittedHp, expectedIsDM }) => {
+    prepareCharacterTest({ userId, role });
+    const aria = createCharacterFixture({
+      hp: initialHp,
+      max_hp: maxHp,
     });
-    prepareCharacterTest({ userId: 'dm-1', role: 'dm' });
-    const aria = {
-      id: 'char-1',
-      user_id: 'player-1',
-      name: 'Aria',
-      hp: 20,
-      max_hp: 20,
-      ac: 14,
-      notes: '',
-    };
-    vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([aria]);
-    vi.spyOn(charactersLib, 'updateCharacterHp').mockResolvedValue({ ...aria, hp: 12 });
+    if (expectedIsDM) {
+      vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([aria]);
+    } else {
+      vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(aria);
+    }
+    vi.spyOn(charactersLib, 'updateCharacterHp').mockResolvedValue({ ...aria, hp: submittedHp });
     vi.spyOn(charactersLib, 'emitCharacterUpdated').mockResolvedValue({ ok: true });
 
     await harness.render('/game/room-123');
 
     const hpInput = harness.container.querySelector('input[name="currentHp"]');
-    const hpForm = harness.container.querySelector('form.character-hp-form');
+    expect(hpInput.value).toBe(String(initialHp));
 
-    expect(hpInput.value).toBe('20');
-
-    await act(async () => {
-      setInputValue(hpInput, '12');
-    });
-    await act(async () => {
-      hpForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await submitHpForm(submittedHp);
 
     expect(charactersLib.updateCharacterHp).toHaveBeenCalledWith(supabase, {
       characterId: 'char-1',
-      hp: 12,
-      isDM: true,
+      hp: submittedHp,
+      isDM: expectedIsDM,
     });
-    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(mockSocket, {
+    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(harness.mockSocket, {
       roomId: 'room-123',
       characterId: 'char-1',
     });
-    expect(hpInput.value).toBe('12');
-  });
-
-  it('Player edits own current HP via updateCharacterHp and emits socket notification', async () => {
-    const mockSocket = { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
-    });
-    prepareCharacterTest({ userId: 'player-1', role: 'player' });
-    const aria = {
-      id: 'char-1',
-      user_id: 'player-1',
-      name: 'Aria',
-      hp: 10,
-      max_hp: 15,
-      ac: 14,
-      notes: '',
-    };
-    vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(aria);
-    vi.spyOn(charactersLib, 'updateCharacterHp').mockResolvedValue({ ...aria, hp: 5 });
-    vi.spyOn(charactersLib, 'emitCharacterUpdated').mockResolvedValue({ ok: true });
-
-    await harness.render('/game/room-123');
-
-    const hpInput = harness.container.querySelector('input[name="currentHp"]');
-    const hpForm = harness.container.querySelector('form.character-hp-form');
-
-    await act(async () => {
-      setInputValue(hpInput, '5');
-    });
-    await act(async () => {
-      hpForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
-
-    expect(charactersLib.updateCharacterHp).toHaveBeenCalledWith(supabase, {
-      characterId: 'char-1',
-      hp: 5,
-      isDM: false,
-    });
-    expect(charactersLib.emitCharacterUpdated).toHaveBeenCalledWith(mockSocket, {
-      roomId: 'room-123',
-      characterId: 'char-1',
-    });
-    expect(hpInput.value).toBe('5');
+    expect(hpInput.value).toBe(String(submittedHp));
   });
 
   it('incoming HP update on another character preserves DM current selection', async () => {
-    const socketListeners = {};
-    const mockSocket = {
-      connected: true,
-      on: vi.fn((event, handler) => {
-        socketListeners[event] = handler;
-      }),
-      off: vi.fn(),
-      emit: vi.fn(),
-    };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
-    });
     prepareCharacterTest({ userId: 'dm-1', role: 'dm' });
-    const char1 = {
+    const char1 = createCharacterFixture({
       id: 'c1',
       user_id: 'dm-1',
       name: 'Goblin 1',
       hp: 10,
       max_hp: 10,
       ac: 12,
-      notes: '',
-    };
-    const char2 = {
+    });
+    const char2 = createCharacterFixture({
       id: 'c2',
       user_id: 'player-1',
       name: 'Aria',
       hp: 20,
       max_hp: 20,
       ac: 14,
-      notes: '',
-    };
+    });
     vi.spyOn(charactersLib, 'getRoomCharacters').mockResolvedValue([char1, char2]);
 
     await harness.render('/game/room-123');
@@ -330,7 +271,7 @@ describe('Character workflow and HP live synchronization (#14)', () => {
 
     // Remote socket event arrives for Aria (char2) with HP 14
     await act(async () => {
-      socketListeners.characterUpdated({
+      harness.triggerSocket('characterUpdated', {
         ...char2,
         room_id: 'room-123',
         hp: 14,
@@ -354,22 +295,8 @@ describe('Character workflow and HP live synchronization (#14)', () => {
   });
 
   it('preserves saved HP and shows sync warning when socket notification fails', async () => {
-    const mockSocket = { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
-    });
     prepareCharacterTest({ userId: 'player-1', role: 'player' });
-    const aria = {
-      id: 'char-1',
-      user_id: 'player-1',
-      name: 'Aria',
-      hp: 10,
-      max_hp: 15,
-      ac: 14,
-      notes: '',
-    };
+    const aria = createCharacterFixture();
     vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(aria);
     vi.spyOn(charactersLib, 'updateCharacterHp').mockResolvedValue({ ...aria, hp: 8 });
     vi.spyOn(charactersLib, 'emitCharacterUpdated').mockRejectedValue(new Error('Socket timeout'));
@@ -377,14 +304,8 @@ describe('Character workflow and HP live synchronization (#14)', () => {
     await harness.render('/game/room-123');
 
     const hpInput = harness.container.querySelector('input[name="currentHp"]');
-    const hpForm = harness.container.querySelector('form.character-hp-form');
 
-    await act(async () => {
-      setInputValue(hpInput, '8');
-    });
-    await act(async () => {
-      hpForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await submitHpForm('8');
 
     // Saved state is preserved on card
     expect(hpInput.value).toBe('8');
@@ -396,56 +317,29 @@ describe('Character workflow and HP live synchronization (#14)', () => {
   });
 
   it('does not allow an in-flight save on an old room to corrupt a newly navigated room', async () => {
-    const mockSocket = { connected: true, on: vi.fn(), off: vi.fn(), emit: vi.fn() };
-    vi.spyOn(useRoomSocketModule, 'useRoomSocket').mockReturnValue({
-      socket: mockSocket,
-      isReady: true,
-      error: null,
-    });
     prepareCharacterTest({ userId: 'player-1', role: 'player' });
-    const aria = {
-      id: 'char-1',
-      user_id: 'player-1',
-      name: 'Aria',
-      hp: 10,
-      max_hp: 15,
-      ac: 14,
-      notes: '',
-    };
+    const aria = createCharacterFixture();
     vi.spyOn(charactersLib, 'getMyCharacter').mockResolvedValue(aria);
 
-    let resolveSave;
-    vi.spyOn(charactersLib, 'updateCharacterHp').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveSave = resolve;
-        }),
-    );
+    const saveDeferred = deferred();
+    vi.spyOn(charactersLib, 'updateCharacterHp').mockReturnValue(saveDeferred.promise);
     vi.spyOn(charactersLib, 'emitCharacterUpdated').mockResolvedValue({ ok: true });
 
     await harness.render('/game/room-1');
 
-    const hpInput = harness.container.querySelector('input[name="currentHp"]');
-    const hpForm = harness.container.querySelector('form.character-hp-form');
-
-    await act(async () => {
-      setInputValue(hpInput, '4');
-    });
-    await act(async () => {
-      hpForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    });
+    await submitHpForm('4');
 
     // Navigate to room-2 while save is in flight
     await harness.navigate('/game/room-2');
 
     // Room-1 save completes now
     await act(async () => {
-      resolveSave({ ...aria, hp: 4 });
+      saveDeferred.resolve({ ...aria, hp: 4 });
     });
 
     // Socket emit was not called for the new room
     expect(charactersLib.emitCharacterUpdated).not.toHaveBeenCalledWith(
-      mockSocket,
+      harness.mockSocket,
       expect.objectContaining({ roomId: 'room-2' }),
     );
   });
