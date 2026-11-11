@@ -1,0 +1,518 @@
+openapi: 3.0.3
+info:
+  title: oPeN VTT API
+  version: 1.0.0
+  description: |
+    The public HTTP API of oPeN VTT. The app has no REST routes of its own: the browser talks
+    to Supabase, and Supabase's data API (PostgREST) exposes the guarded database functions
+    (RPCs) described here. Authentication uses Supabase Auth, which issues a JWT.
+
+    Every call needs two headers: `apikey` (the project's public anon key) and
+    `Authorization: Bearer <user JWT>`. Row-level security and the function bodies decide what
+    each signed-in user may do. Errors raised by a function come back as HTTP 400 with the
+    message in the response body.
+
+    Live updates (dice rolls, token moves, character changes) are not HTTP. They use Socket.IO
+    and are described in `Docs/api-reference.md`, not in this file.
+servers:
+  - url: http://127.0.0.1:54321
+    description: Local Supabase stack (`npm run db:start` in `backend/`)
+  - url: https://{projectRef}.supabase.co
+    description: Hosted Supabase project
+    variables:
+      projectRef:
+        default: your-project-ref
+tags:
+  - name: Auth
+    description: Accounts and sessions (Supabase Auth)
+  - name: Rooms
+    description: Creating and joining rooms, and listing members
+  - name: Tokens
+    description: Moving tokens on the board
+  - name: Characters
+    description: Updating a player's own character card
+  - name: Maps
+    description: Choosing the room's active map
+security:
+  - anonKey: []
+    bearerAuth: []
+paths:
+  /auth/v1/signup:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      description: Registers a user with an email and password. Local Supabase has email confirmation turned off, so the account works at once.
+      security:
+        - anonKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "200":
+          description: Account created. Returns the user, and a session when no email confirmation is required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "422":
+          description: Invalid email, a password shorter than 6 characters, or an email that is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+  /auth/v1/token:
+    post:
+      tags: [Auth]
+      summary: Log in with email and password
+      description: Exchanges credentials for a session containing the access token (JWT) used by every other call.
+      security:
+        - anonKey: []
+      parameters:
+        - name: grant_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "200":
+          description: Session with `access_token`, `refresh_token`, `expires_in`, and the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          description: Invalid login credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+  /rest/v1/rpc/create_room:
+    post:
+      tags: [Rooms]
+      summary: Create a room and become its DM
+      description: |
+        Creates a room with a trimmed name and a bcrypt-hashed password, and adds the caller as
+        its DM. Room names are unique ignoring case and surrounding spaces.
+      operationId: createRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_name, p_password]
+              properties:
+                p_name:
+                  type: string
+                  example: The Sunless Citadel
+                p_password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: The id of the new room.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        "400":
+          description: |
+            A function error. Possible messages: `authentication required`,
+            `room name already taken`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/join_room:
+    post:
+      tags: [Rooms]
+      summary: Join a room as a player
+      description: |
+        Finds the room by name (trimmed, case-insensitive), checks the password, and adds the
+        caller as a `player`. Joining a room you are already in changes nothing and keeps your
+        role. A null password is rejected.
+      operationId: joinRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_name, p_password]
+              properties:
+                p_name:
+                  type: string
+                  example: The Sunless Citadel
+                p_password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: The id of the room.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        "400":
+          description: |
+            A function error. Possible messages: `authentication required`, `room not found`,
+            `invalid password`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/get_room_members:
+    post:
+      tags: [Rooms]
+      summary: List the members of a room
+      description: |
+        Returns every member with their role and display name, DM first and then by name.
+        The display name is the account's `username`, or the part of the email before the `@`.
+        Emails and other account fields are never returned. Only members of the room may call it.
+      operationId: getRoomMembers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_room_id]
+              properties:
+                p_room_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: The room's members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomMember"
+        "400":
+          description: A function error, with the message `not a member of this room`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/move_token:
+    post:
+      tags: [Tokens]
+      summary: Move a token
+      description: |
+        Changes only the token's `x` and `y`. Allowed for the room's DM, or for the player the
+        token is assigned to. This is the only way a player can change a token. After it succeeds
+        the client announces the move over Socket.IO with the `moveToken` event.
+      operationId: moveToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_token_id, p_x, p_y]
+              properties:
+                p_token_id:
+                  type: string
+                  format: uuid
+                p_x:
+                  type: number
+                  format: double
+                p_y:
+                  type: number
+                  format: double
+      responses:
+        "200":
+          description: The updated token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "400":
+          description: |
+            A function error. Possible messages: `authentication required`, `token not found`,
+            `not allowed to move this token`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/update_character:
+    post:
+      tags: [Characters]
+      summary: Update your own character's HP or notes
+      description: |
+        A player's way to edit their own card. Only `hp` and `notes` can change, and leaving
+        either out (or sending null) keeps it unchanged. The caller must be a member of the
+        room and the card's owner. The DM edits cards with a direct table update instead.
+        After it succeeds the client announces the change over Socket.IO with the
+        `characterUpdated` event.
+      operationId: updateCharacter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_character_id]
+              properties:
+                p_character_id:
+                  type: string
+                  format: uuid
+                p_hp:
+                  type: integer
+                  nullable: true
+                  description: New current HP. Must be between 0 and the character's `max_hp`.
+                p_notes:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: The updated character.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+        "400":
+          description: |
+            A function error. Possible messages: `authentication required`,
+            `character not found`, `not a member of room`, `not allowed to edit this character`,
+            `hp must be between 0 and max_hp`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/set_active_map:
+    post:
+      tags: [Maps]
+      summary: Choose the room's active map
+      description: |
+        Only the room's DM may call it, and the map must belong to that room. The `rooms` table
+        has no update policy, so this function is the only way to change `active_map_id`.
+      operationId: setActiveMap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_room_id, p_map_id]
+              properties:
+                p_room_id:
+                  type: string
+                  format: uuid
+                p_map_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: The updated room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "400":
+          description: |
+            A function error. Possible messages: `authentication required`,
+            `not allowed to set the active map`, `map does not belong to this room`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RpcError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    anonKey:
+      type: apiKey
+      in: header
+      name: apikey
+      description: The Supabase project's public anon key.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The `access_token` returned by `/auth/v1/token`.
+  responses:
+    Unauthorized:
+      description: The JWT is missing, invalid, or expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RpcError"
+  schemas:
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 6
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+    Session:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: The JWT to send in the Authorization header as a Bearer token.
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Seconds until the access token expires (3600 locally).
+        token_type:
+          type: string
+          example: bearer
+        user:
+          $ref: "#/components/schemas/User"
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        session:
+          allOf:
+            - $ref: "#/components/schemas/Session"
+          nullable: true
+    AuthError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: invalid_credentials
+        message:
+          type: string
+    RpcError:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Database error code. `P0001` for errors a function raised on purpose.
+        message:
+          type: string
+          example: room not found
+        details:
+          type: string
+          nullable: true
+        hint:
+          type: string
+          nullable: true
+    RoomMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [dm, player]
+        display_name:
+          type: string
+    Token:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        room_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+          example: "#b23b3b"
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        assigned_to:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    Character:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        room_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        hp:
+          type: integer
+          minimum: 0
+        max_hp:
+          type: integer
+        ac:
+          type: integer
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        password_hash:
+          type: string
+          description: Bcrypt hash of the room password.
+        created_by:
+          type: string
+          format: uuid
+        active_map_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
