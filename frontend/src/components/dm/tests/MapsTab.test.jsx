@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import MapsTab from './MapsTab.jsx';
+import MapsTab from '../MapsTab.jsx';
 
 describe('MapsTab component', () => {
   it('renders upload area, grid controls, and maps list', () => {

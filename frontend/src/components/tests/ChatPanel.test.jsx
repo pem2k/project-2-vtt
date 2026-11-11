@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import ChatPanel from './ChatPanel.jsx';
+import ChatPanel from '../ChatPanel.jsx';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 

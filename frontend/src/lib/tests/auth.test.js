@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateCredentials, authErrorMessage } from './auth.js';
+import { validateCredentials, authErrorMessage } from '../auth.js';
 
 describe('validateCredentials', () => {
   it('flags empty email and password', () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { connectSocket, disconnectSocket, getSocket, joinRoomChannel } from './socket.js';
+import { connectSocket, disconnectSocket, getSocket, joinRoomChannel } from '../socket.js';
 
 describe('socket client utilities', () => {
   afterEach(() => {

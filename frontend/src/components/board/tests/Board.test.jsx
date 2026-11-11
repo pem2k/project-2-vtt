@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
-import Board from './Board.jsx';
-import { MIN_SCALE, MAX_SCALE } from '../../lib/camera.js';
+import Board from '../Board.jsx';
+import { MIN_SCALE, MAX_SCALE } from '../../../lib/camera.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 

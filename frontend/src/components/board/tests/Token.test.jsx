@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import Token from './Token.jsx';
+import Token from '../Token.jsx';
 
 let latestGroupProps = null;
 

@@ -4,7 +4,7 @@ import {
   getRoomCharacters,
   getMyCharacter,
   createCharacter,
-} from './characters.js';
+} from '../characters.js';
 
 describe('characters library', () => {
   describe('validateCharacterInput', () => {

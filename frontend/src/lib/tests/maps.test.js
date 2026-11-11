@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getActiveMap, validateMapFile } from './maps.js';
+import { getActiveMap, validateMapFile } from '../maps.js';
 
 describe('validateMapFile (#7)', () => {
   it('rejects null or missing file', () => {

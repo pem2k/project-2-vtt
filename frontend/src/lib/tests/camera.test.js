@@ -8,7 +8,7 @@ import {
   MIN_SCALE,
   MAX_SCALE,
   SCALE_BY,
-} from './camera.js';
+} from '../camera.js';
 
 describe('camera module', () => {
   describe('constants', () => {

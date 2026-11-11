@@ -11,7 +11,7 @@ import {
   assignToken,
   moveToken,
   emitMoveToken,
-} from './tokens.js';
+} from '../tokens.js';
 
 describe('tokens library', () => {
   describe('TOKEN_COLORS', () => {

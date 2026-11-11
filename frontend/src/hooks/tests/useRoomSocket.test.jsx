@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { useRoomSocket } from './useRoomSocket.js';
-import * as socketLib from '../lib/socket.js';
-import { supabase } from '../lib/supabaseClient.js';
-import { deferred } from '../test/deferred.js';
+import { useRoomSocket } from '../useRoomSocket.js';
+import * as socketLib from '../../lib/socket.js';
+import { supabase } from '../../lib/supabaseClient.js';
+import { deferred } from '../../test/deferred.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 

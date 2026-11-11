@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import CharacterCard from './CharacterCard.jsx';
+import CharacterCard from '../CharacterCard.jsx';
 
 describe('CharacterCard display', () => {
   it('renders name, HP, AC, and notes for an existing character', () => {

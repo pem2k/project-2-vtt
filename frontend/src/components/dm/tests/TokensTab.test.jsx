@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import TokensTab from './TokensTab.jsx';
+import TokensTab from '../TokensTab.jsx';
 
 describe('TokensTab component', () => {
   it('renders token form and empty state when no tokens exist', () => {

@@ -5,7 +5,7 @@ import {
   emitRollDice,
   formatRollMessage,
   parseRollCommand,
-} from './dice.js';
+} from '../dice.js';
 
 describe('dice library', () => {
   it('lists the seven standard dice', () => {

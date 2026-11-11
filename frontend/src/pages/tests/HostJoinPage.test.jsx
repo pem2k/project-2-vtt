@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import HostJoinPage from './HostJoinPage.jsx';
+import HostJoinPage from '../HostJoinPage.jsx';
 
-vi.mock('../hooks/useAuth.jsx', () => ({
+vi.mock('../../hooks/useAuth.jsx', () => ({
   useAuth: () => ({
     session: { access_token: 'test-token' },
     user: { email: 'dm@test.dev' },
@@ -11,7 +11,7 @@ vi.mock('../hooks/useAuth.jsx', () => ({
   }),
 }));
 
-vi.mock('../lib/supabaseClient.js', () => ({
+vi.mock('../../lib/supabaseClient.js', () => ({
   supabase: {},
 }));
 

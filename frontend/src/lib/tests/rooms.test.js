@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRoom, getRoomMembers, getRoomName, joinRoom, validateRoomDetails } from './rooms.js';
+import {
+  createRoom,
+  getRoomMembers,
+  getRoomName,
+  joinRoom,
+  validateRoomDetails,
+} from '../rooms.js';
 
 describe('validateRoomDetails', () => {
   it('rejects an empty room name', () => {

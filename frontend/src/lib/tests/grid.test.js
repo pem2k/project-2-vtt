@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeGridLines } from './grid.js';
+import { computeGridLines } from '../grid.js';
 
 describe('computeGridLines', () => {
   it('computes correct vertical and horizontal grid lines for 100x100 with cellSize 50', () => {

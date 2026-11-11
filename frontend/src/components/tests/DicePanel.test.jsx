@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import DicePanel from './DicePanel.jsx';
+import DicePanel from '../DicePanel.jsx';
 
 const DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
 

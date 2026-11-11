@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import DMControls from './DMControls.jsx';
+import DMControls from '../DMControls.jsx';
 
 describe('DMControls tokens tab', () => {
   it('renders the tokens form and token list with accessible controls', () => {
