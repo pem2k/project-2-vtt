@@ -17,11 +17,21 @@ When a task is ambiguous about the Supabase-vs-Socket.IO boundary or an RLS/perm
 
 ## Project Context
 
-oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room code, move assigned tokens, update character HP, and roll dice — all in real time.
+oPeN VTT is a shared virtual tabletop for playing D&D online. DMs create password-protected rooms, upload maps, and place tokens. Players join via room name and password, move assigned tokens, update character HP, and roll dice — all in real time.
 
 - **PRD**: [Docs/prd.md](Docs/prd.md)
 - **Design**: [Docs/design.md](Docs/design.md) — color palette, typography, mockups, token colors
 - **Mockups**: [General Flow](Docs/general_mockup.png) | [DM Controls](Docs/dm_control_mockup.png)
+- **README**: [README.md](README.md)
+- **API reference**: [Docs/api-reference.md](Docs/api-reference.md)
+- **OpenAPI spec**: [Docs/api/openapi.yaml](Docs/api/openapi.yaml)
+- **Architecture diagram**: [Docs/architecture-diagram.md](Docs/architecture-diagram.md)
+- **Setup guide**: [Docs/setup-guide.md](Docs/setup-guide.md)
+- **Deployment**: [Docs/deployment.md](Docs/deployment.md)
+- **Sprints**: [Docs/sprints/](Docs/sprints/) — planning, retros and standups
+- **Contribution log**: [Docs/contribution-log.md](Docs/contribution-log.md)
+
+**Team workflow:** Both partners share the Product Owner and Scrum Master roles and plan each sprint together. Every change to AGENTS.md goes through a pull request. AGENTS.md is revisited at every sprint retrospective.
 
 ## Reference Docs (read on demand)
 
