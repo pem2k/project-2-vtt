@@ -13,21 +13,43 @@ import { loadBackendEnv } from './utils/supabaseConfig.js';
 // allow the frontend's origin or the handshake is blocked cross-origin. The
 // allowed origin(s) come from CLIENT_ORIGIN (comma-separated for multiple
 // environments); the localhost fallback keeps local dev working without config.
+// A * in an entry matches one subdomain segment (no dots or slashes) so a
+// preview host like https://project-2-vtt-*.vercel.app can be allowed. Exact
+// entries stay strings; wildcard entries become anchored regular expressions.
+const LOCAL_DEV_ORIGIN = 'http://localhost:5173';
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function toOriginMatcher(entry) {
+  if (!entry.includes('*')) {
+    return entry;
+  }
+
+  const pattern = entry.split('*').map(escapeRegExp).join('[^./]+');
+  return new RegExp(`^${pattern}$`);
+}
+
 export function buildCorsOptions(clientOrigin = process.env.CLIENT_ORIGIN) {
   if (!clientOrigin) {
-    return { origin: ['http://localhost:5173'], methods: ['GET', 'POST'] };
+    return { origin: [LOCAL_DEV_ORIGIN], methods: ['GET', 'POST'] };
   }
 
   const origin = clientOrigin
     .split(',')
     .map((value) => value.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(toOriginMatcher);
 
   return { origin, methods: ['GET', 'POST'] };
 }
 
 export function createServer({ io: providedIo, logger = console.log } = {}) {
   const app = express();
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
   const httpServer = createHttpServer(app);
 
   let io = providedIo;
