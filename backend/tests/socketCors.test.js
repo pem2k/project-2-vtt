@@ -16,6 +16,60 @@ describe('buildCorsOptions', () => {
       methods: ['GET', 'POST'],
     });
   });
+
+  it('keeps an exact CLIENT_ORIGIN entry as a string', () => {
+    expect(buildCorsOptions('https://open-vtt.example')).toEqual({
+      origin: ['https://open-vtt.example'],
+      methods: ['GET', 'POST'],
+    });
+  });
+
+  it('matches one preview label from a * wildcard entry', () => {
+    const { origin, methods } = buildCorsOptions('https://project-2-vtt-*.vercel.app');
+
+    expect(methods).toEqual(['GET', 'POST']);
+    expect(origin).toHaveLength(1);
+    expect(origin[0]).toBeInstanceOf(RegExp);
+    expect(origin[0].test('https://project-2-vtt-git-abc123.vercel.app')).toBe(true);
+  });
+
+  it('does not let a wildcard origin match a different domain', () => {
+    const { origin } = buildCorsOptions('https://project-2-vtt-*.vercel.app');
+
+    expect(origin[0]).toBeInstanceOf(RegExp);
+    expect(origin[0].test('https://project-2-vtt-git-abc123.vercel.com')).toBe(false);
+    expect(origin[0].test('https://evil.example')).toBe(false);
+    expect(origin[0].test('https://project-2-vtt-git-abc123.vercel.app.evil.com')).toBe(false);
+  });
+
+  it('does not let a wildcard match extra subdomain dots or slashes', () => {
+    const { origin } = buildCorsOptions('https://project-2-vtt-*.vercel.app');
+
+    expect(origin[0]).toBeInstanceOf(RegExp);
+    expect(origin[0].test('https://project-2-vtt-abc.def.vercel.app')).toBe(false);
+    expect(origin[0].test('https://foo.project-2-vtt-abc.vercel.app')).toBe(false);
+    expect(origin[0].test('https://project-2-vtt-abc/def.vercel.app')).toBe(false);
+    expect(origin[0].test('https://project-2-vtt-abcXvercelYapp')).toBe(false);
+    expect(origin[0].test('https://project-2-vtt-.vercel.app')).toBe(false);
+  });
+
+  it('escapes regex metacharacters outside the wildcard', () => {
+    const { origin } = buildCorsOptions('https://my+app-*.example.com');
+
+    expect(origin[0]).toBeInstanceOf(RegExp);
+    expect(origin[0].test('https://my+app-preview.example.com')).toBe(true);
+    expect(origin[0].test('https://myyyapp-preview.example.com')).toBe(false);
+  });
+
+  it('keeps an exact origin as a string when a wildcard entry is also configured', () => {
+    const { origin } = buildCorsOptions(
+      ' https://open-vtt.example , https://project-2-vtt-*.vercel.app ',
+    );
+
+    expect(origin[0]).toBe('https://open-vtt.example');
+    expect(origin[1]).toBeInstanceOf(RegExp);
+    expect(origin[1].test('https://project-2-vtt-preview.vercel.app')).toBe(true);
+  });
 });
 
 describe('Socket.IO CORS handshake', () => {
