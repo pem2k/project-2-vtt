@@ -1,0 +1,50 @@
+# Free-only demo hosting. PR frontends share the demo API/database.
+# Do not enable multi-service Preview Environments (a paid Render feature).
+services:
+  - type: web
+    name: open-vtt-demo-api
+    runtime: node
+    plan: free
+    region: oregon
+    repo: https://github.com/pem2k/project-2-vtt
+    branch: dev
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false
+  - type: web
+    name: open-vtt-demo-web
+    runtime: static
+    repo: https://github.com/pem2k/project-2-vtt
+    branch: dev
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: checksPass
+    previews:
+      generation: automatic
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: SKIP_INSTALL_DEPS
+        value: true
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_SOCKET_URL
+        sync: false

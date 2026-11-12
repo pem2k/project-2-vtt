@@ -7,6 +7,7 @@ const savedSupabaseUrl = process.env.SUPABASE_URL;
 const savedSupabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
 afterEach(() => {
+  vi.restoreAllMocks();
   if (savedSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
   else process.env.SUPABASE_URL = savedSupabaseUrl;
   if (savedSupabaseAnonKey === undefined) delete process.env.SUPABASE_ANON_KEY;
@@ -15,6 +16,7 @@ afterEach(() => {
 
 describe('room socket authentication', () => {
   it('rejects missing Supabase configuration during server registration', () => {
+    vi.spyOn(process, 'loadEnvFile').mockImplementation(() => {});
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_ANON_KEY;
     const io = { on: vi.fn(), use: vi.fn() };

@@ -147,3 +147,7 @@ Branch from `dev` and open the pull request back into `dev`. These rules are fro
 Use a conventional commit with the issue number: `<type>(<scope>): <description> (#N)`. Types are `feat`, `fix`, `test`, `refactor`, `chore`, and `docs`. Scopes are `auth`, `room`, `board`, `token`, `dice`, `character`, and `ci`.
 
 One pull request per issue. The title equals the issue title. The first line of the description is `Closes #N`. The branch must be up to date with `dev`, CI must pass, and the merge is a squash merge. Pull requests target `dev`. Merges from `dev` to `main` are done by the repo owner.
+
+## Hosting and CI/CD
+
+See [Free demo deployment and CI/CD](Docs/deployment.md) for the Render/Supabase setup, PR previews, environment settings, and real browser tests.

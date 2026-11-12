@@ -173,7 +173,7 @@ To fix formatting, run `npm run format` in `frontend/`. The backend has no `form
 
 ## Hosted deployment
 
-This repo does not contain a deployment setup: there is no Dockerfile, hosting configuration, or deploy workflow, and CI only lints and tests. The list below is what the code needs from any host, not a description of a live deployment.
+The free Render/Supabase setup is defined in `render.yaml`; see [Free demo deployment and CI/CD](deployment.md) for provisioning, PR previews, environment variables, and the unit/integration/E2E pipeline. The provider settings below explain what the app needs from a host.
 
 **Supabase project**
 
