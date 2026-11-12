@@ -10,8 +10,15 @@ on:
       - dev
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -21,6 +28,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -38,10 +49,6 @@ jobs:
         working-directory: frontend
         run: npm run format:check
 
-      - name: Test frontend
-        working-directory: frontend
-        run: npm test
-
       - name: Lint backend
         working-directory: backend
         run: npm run lint
@@ -50,6 +57,105 @@ jobs:
         working-directory: backend
         run: npm run format:check
 
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test
+
       - name: Test backend units
         working-directory: backend
         run: npm run test:unit
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+  lint-and-test:
+    needs: [lint, test, build, security]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI succeeded
+        run: |
+          lint="${{ needs.lint.result }}"
+          test="${{ needs.test.result }}"
+          build="${{ needs.build.result }}"
+          security="${{ needs.security.result }}"
+          echo "lint=$lint test=$test build=$build security=$security"
+          if [ "$lint" != "success" ] || [ "$test" != "success" ] || [ "$build" != "success" ] || [ "$security" != "success" ]; then
+            echo "One or more CI stages failed"
+            exit 1
+          fi
+          echo "CI succeeded"
