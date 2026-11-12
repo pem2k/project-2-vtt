@@ -36,6 +36,13 @@ describe('characters RLS, update_character, one-per-player trigger', () => {
   });
 
   it('a player cannot change max_hp/ac (no direct update path)', async () => {
+    const { data: before, error: readError } = await dm
+      .from('characters')
+      .select('max_hp,ac')
+      .eq('id', ariaChar.id)
+      .single();
+    expect(readError).toBeNull();
+    expect(before).not.toBeNull();
     const { data } = await player1
       .from('characters')
       .update({ max_hp: 999, ac: 99 })
@@ -47,8 +54,7 @@ describe('characters RLS, update_character, one-per-player trigger', () => {
       .select('max_hp,ac')
       .eq('id', ariaChar.id)
       .single();
-    expect(check.max_hp).toBe(22);
-    expect(check.ac).toBe(14);
+    expect(check).toEqual(before);
   });
 
   it('a player edits their own hp/notes via update_character', async () => {

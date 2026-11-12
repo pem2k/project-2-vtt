@@ -1,0 +1,11 @@
+# Partial hosted-demo configuration. Unspecified settings are left unchanged.
+# Apply only to the new demo project, never to an unrelated hosted database.
+project_id = "open-vtt-demo"
+
+[auth]
+site_url = "https://open-vtt-demo-web.onrender.com"
+additional_redirect_urls = ["https://open-vtt-demo-web-pr-*.onrender.com/**"]
+
+[auth.email]
+# The demo uses email/password login without requiring outbound email delivery.
+enable_confirmations = false

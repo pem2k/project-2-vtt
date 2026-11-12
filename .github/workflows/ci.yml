@@ -89,8 +89,58 @@ jobs:
         working-directory: backend
         run: npm run test:unit
 
-  build:
+  integration:
+    name: Database integration and browser E2E
     needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+      - name: Set up local Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Start disposable local database
+        working-directory: backend
+        run: supabase start
+      - name: Run backend integration tests with real RLS
+        working-directory: backend
+        run: npm test
+      - name: Test room joining, dice broadcasts, and refresh in Chromium
+        working-directory: frontend
+        run: npm run test:e2e:local
+      - name: Upload browser test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-report
+          path: frontend/playwright-report/
+          retention-days: 3
+      - name: Stop disposable database
+        if: always()
+        working-directory: backend
+        run: supabase stop --no-backup
+
+  build:
+    needs: integration
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -143,7 +193,7 @@ jobs:
         run: npm audit --audit-level=high
 
   lint-and-test:
-    needs: [lint, test, build, security]
+    needs: [lint, test, integration, build, security]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -151,10 +201,11 @@ jobs:
         run: |
           lint="${{ needs.lint.result }}"
           test="${{ needs.test.result }}"
+          integration="${{ needs.integration.result }}"
           build="${{ needs.build.result }}"
           security="${{ needs.security.result }}"
-          echo "lint=$lint test=$test build=$build security=$security"
-          if [ "$lint" != "success" ] || [ "$test" != "success" ] || [ "$build" != "success" ] || [ "$security" != "success" ]; then
+          echo "lint=$lint test=$test integration=$integration build=$build security=$security"
+          if [ "$lint" != "success" ] || [ "$test" != "success" ] || [ "$integration" != "success" ] || [ "$build" != "success" ] || [ "$security" != "success" ]; then
             echo "One or more CI stages failed"
             exit 1
           fi

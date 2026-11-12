@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage']),
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -25,6 +25,10 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
+  },
+  {
+    files: ['playwright.config.js', 'e2e/**/*.js', 'scripts/**/*.js'],
+    languageOptions: { globals: globals.node },
   },
   prettierConfig,
 ]);
