@@ -120,3 +120,5 @@
 [2026-11-10] [pem2k] [test fix] Resolved query mock incompleteness in frontend/src/test/supabaseMock.js and test suites: configured builder.then to resolve { data: null, error } so awaiting incomplete PostgREST queries does not falsely resolve row data, and restored explicit select, single, and maybeSingle spy assertions across tokens.test.js and characters.test.js — prevents tests from passing if essential query terminations are omitted.
 
 [2026-11-12] [Codex] [free deployment] Provisioned the authorized free Supabase demo project and applied migrations without seeds; created free Render API/static services with automatic releases initially disabled pending review. Added CI-gated Render blueprint, partial demo Auth config, local-only real Playwright host/join/broadcast/refresh scenario, database integration CI stage, deployment guide, and deterministic missing-config/permission-state assertions. PR frontends share the demo API/database to avoid paid preview environments. No commits or pushes performed.
+
+[2026-11-12] [pem2k] [docs] Updated live demo link in README.md and added project reflection in Docs/reflections/parker-reflection.md.
