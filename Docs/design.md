@@ -4,23 +4,23 @@
 
 Source: [coolors.co palette](https://coolors.co/d0b8ac-f3d8c7-efe5dc-fbfefb-ffffff)
 
-| Name | Hex | RGB | Role |
-| --- | --- | --- | --- |
-| Rosy Brown | `#D0B8AC` | `208, 184, 172` | Primary accent — buttons, active states, highlights |
-| Champagne Pink | `#F3D8C7` | `243, 216, 199` | Secondary accent — panels, cards, hover states |
-| Almond | `#EFE5DC` | `239, 229, 220` | Surface — secondary backgrounds, dividers |
-| Mint Cream | `#FBFEFB` | `251, 254, 251` | Background — primary app background |
-| White | `#FFFFFF` | `255, 255, 255` | Base — cards, inputs, elevated surfaces |
+| Name           | Hex       | RGB             | Role                                                |
+| -------------- | --------- | --------------- | --------------------------------------------------- |
+| Rosy Brown     | `#D0B8AC` | `208, 184, 172` | Primary accent — buttons, active states, highlights |
+| Champagne Pink | `#F3D8C7` | `243, 216, 199` | Secondary accent — panels, cards, hover states      |
+| Almond         | `#EFE5DC` | `239, 229, 220` | Surface — secondary backgrounds, dividers           |
+| Mint Cream     | `#FBFEFB` | `251, 254, 251` | Background — primary app background                 |
+| White          | `#FFFFFF` | `255, 255, 255` | Base — cards, inputs, elevated surfaces             |
 
 ### CSS Custom Properties
 
 ```css
 :root {
-  --color-primary: #d0b8ac;   /* Rosy Brown */
+  --color-primary: #d0b8ac; /* Rosy Brown */
   --color-secondary: #f3d8c7; /* Champagne Pink */
-  --color-surface: #efe5dc;   /* Almond */
-  --color-background: #fbfefb;/* Mint Cream */
-  --color-base: #ffffff;      /* White */
+  --color-surface: #efe5dc; /* Almond */
+  --color-background: #fbfefb; /* Mint Cream */
+  --color-base: #ffffff; /* White */
 }
 ```
 
@@ -31,7 +31,7 @@ Primary typeface: [Vollkorn](https://fonts.google.com/specimen/Vollkorn) (variab
 Load the font:
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Vollkorn:wght@400..900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Vollkorn:wght@400..900&display=swap");
 ```
 
 Apply it (replace the weight with any value from 400 to 900, and use a descriptive class name):
@@ -60,7 +60,7 @@ Low-fidelity wireframes for the core flows and screens.
 
 ![General flow mockup](general_mockup.png)
 
-Covers the full path: **Landing Page** (login + password) → **Join a Game** (Host / Join) → **Room Login Page** (room code + password to join, or room name + password to host) → **Board**. The Board has two variants:
+Covers the full path: **Landing Page** (login + password) → **Join a Game** (Host / Join) → **Room Login Page** (room name + password to join, or room name + password to host) → **Board**. The Board has two variants:
 
 - **Board (Player)** — clickable character card (dice rolls with modifier, savable/editable by the player), the map Board, a Public Roll History panel, and a Dice Roller (both a text-parsing input and dice buttons).
 - **Board (DM)** — same layout plus DM Controls: click a token to populate an editable character sheet, add/remove enemy and player tokens, change HP/AC, etc.
@@ -82,16 +82,16 @@ Tokens must be visually distinct and, per the accessibility rules in [AGENTS.md]
 
 > **Note:** These are placeholder colors for default/generated tokens. The goal is to let DMs and players upload images for tokens, so these act as fallbacks until a custom image is set.
 
-| Token | Hex | Suggested use |
-| --- | --- | --- |
-| Red | `#E6194B` | Enemy / hostile |
-| Blue | `#4363D8` | Player |
-| Green | `#3CB44B` | Player / ally |
-| Orange | `#F58231` | Player |
-| Purple | `#911EB4` | Player |
-| Teal | `#469990` | NPC / neutral |
+| Token  | Hex       | Suggested use   |
+| ------ | --------- | --------------- |
+| Red    | `#E6194B` | Enemy / hostile |
+| Blue   | `#4363D8` | Player          |
+| Green  | `#3CB44B` | Player / ally   |
+| Orange | `#F58231` | Player          |
+| Purple | `#911EB4` | Player          |
+| Teal   | `#469990` | NPC / neutral   |
 | Yellow | `#FFE119` | NPC / objective |
-| Pink | `#F032E6` | Player |
+| Pink   | `#F032E6` | Player          |
 
 These are chosen for maximum mutual contrast so overlapping tokens on the board stay distinguishable.
 
@@ -100,8 +100,8 @@ These are chosen for maximum mutual contrast so overlapping tokens on the board 
 ## D&D 5e Rules Reference
 
 For reference to official D&D 5th Edition rules and game mechanics:
+
 - **Rules Index**: [D&D Beyond Basic Rules (2014)](https://www.dndbeyond.com/sources/dnd/basic-rules-2014)
 
 > [!IMPORTANT]
 > **Agent Directive:** Do **not** read or fetch this reference without explicitly consulting the user first. Whenever basic D&D 5e mechanics knowledge would be useful for a feature or design decision, check with the user before accessing specific sections of this rules index.
-
