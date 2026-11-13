@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
-import { getActiveMap } from '../lib/maps.js';
+import { getActiveMap, emitMapUpdated } from '../lib/maps.js';
 import { getRoomMembers, getRoomName } from '../lib/rooms.js';
+import { getRoomGrid, setRoomGrid, emitGridUpdated } from '../lib/roomGrid.js';
 import {
   getRoomTokens,
   addToken,
@@ -61,6 +62,9 @@ export default function GamePage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [gridCellSize, setGridCellSize] = useState(50);
+  const [gridSavingVisit, setGridSavingVisit] = useState(null);
+  const savedGridRef = useRef({ grid_visible: true, grid_cell_size: 50 });
+  const gridSaveRef = useRef(null);
   const [tokens, setTokens] = useState([]);
   const [visitState, setVisitState] = useState(() => ({
     roomId,
@@ -77,6 +81,7 @@ export default function GamePage() {
   }
 
   const pendingTokenIds = visitState.pendingTokenIds;
+  const gridSaving = gridSavingVisit === visitState.visitId;
   const [members, setMembers] = useState([]);
   const [rolls, setRolls] = useState([]);
   const [character, setCharacter] = useState(null);
@@ -89,7 +94,8 @@ export default function GamePage() {
     syncId: 0,
     inFlight: false,
     bufferedEvents: [],
-    mapOverride: null,
+    mapOverride: undefined,
+    gridOverride: null,
   });
 
   const tokensRef = useRef(tokens);
@@ -106,6 +112,7 @@ export default function GamePage() {
     roomIdRef.current = roomId;
     roomVisitRef.current = visitState.visitId;
     pendingMovesRef.current.clear();
+    gridSaveRef.current = null;
   }, [roomId, visitState.visitId]);
 
   const isMountedRef = useRef(true);
@@ -184,6 +191,13 @@ export default function GamePage() {
     }
   }, [roomId]);
 
+  const applyRoomGrid = useCallback((grid) => {
+    savedGridRef.current = grid;
+    setShowGrid(grid.grid_visible);
+    setGridCellSize(grid.grid_cell_size);
+    if (syncStateRef.current.inFlight) syncStateRef.current.gridOverride = grid;
+  }, []);
+
   const loadRoomState = useCallback(async () => {
     if (!isMountedRef.current || roomIdRef.current !== roomId) {
       return;
@@ -192,12 +206,14 @@ export default function GamePage() {
     const currentSyncId = ++syncStateRef.current.syncId;
     syncStateRef.current.inFlight = true;
     syncStateRef.current.bufferedEvents = [];
-    syncStateRef.current.mapOverride = null;
+    syncStateRef.current.mapOverride = undefined;
+    syncStateRef.current.gridOverride = null;
 
     try {
-      const [snapshotTokens, snapshotMap] = await Promise.all([
+      const [snapshotTokens, snapshotMap, snapshotGrid] = await Promise.all([
         getRoomTokens(supabase, roomId),
         getActiveMap(supabase, roomId),
+        getRoomGrid(supabase, roomId),
       ]);
 
       if (
@@ -210,8 +226,9 @@ export default function GamePage() {
 
       const finalTokens = reconcileTokens(snapshotTokens, syncStateRef.current.bufferedEvents);
       setTokens(finalTokens);
+      applyRoomGrid(syncStateRef.current.gridOverride ?? snapshotGrid);
 
-      if (syncStateRef.current.mapOverride !== null) {
+      if (syncStateRef.current.mapOverride !== undefined) {
         setActiveMap(syncStateRef.current.mapOverride);
       } else {
         setActiveMap(snapshotMap);
@@ -231,10 +248,11 @@ export default function GamePage() {
       if (syncStateRef.current.syncId === currentSyncId) {
         syncStateRef.current.inFlight = false;
         syncStateRef.current.bufferedEvents = [];
-        syncStateRef.current.mapOverride = null;
+        syncStateRef.current.mapOverride = undefined;
+        syncStateRef.current.gridOverride = null;
       }
     }
-  }, [roomId]);
+  }, [roomId, applyRoomGrid]);
 
   const handleJoined = useCallback(() => {
     return Promise.all([loadRoomState(), loadCharacters()]);
@@ -247,6 +265,64 @@ export default function GamePage() {
   } = useRoomSocket(roomId, {
     onJoined: handleJoined,
   });
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleGridUpdated = (grid) => {
+      if (grid.id === roomId) applyRoomGrid(grid);
+    };
+    socket.on('gridUpdated', handleGridUpdated);
+    const handleMapUpdated = ({ roomId: updatedRoomId, map }) => {
+      if (updatedRoomId !== roomId) return;
+      if (syncStateRef.current.inFlight) syncStateRef.current.mapOverride = map;
+      setActiveMap(map);
+    };
+    socket.on('mapUpdated', handleMapUpdated);
+    return () => {
+      socket.off('gridUpdated', handleGridUpdated);
+      socket.off('mapUpdated', handleMapUpdated);
+    };
+  }, [socket, roomId, applyRoomGrid]);
+
+  async function saveGrid(visible, cellSize) {
+    if (!isDM || gridSaveRef.current || !isSocketReady) return;
+    if (
+      visible === savedGridRef.current.grid_visible &&
+      cellSize === savedGridRef.current.grid_cell_size
+    )
+      return;
+    const operation = {};
+    const visit = roomVisitRef.current;
+    const stillCurrent = () =>
+      isMountedRef.current && roomIdRef.current === roomId && roomVisitRef.current === visit;
+    gridSaveRef.current = operation;
+    setGridSavingVisit(visit);
+    setActionError(null);
+    try {
+      let saved;
+      try {
+        saved = await setRoomGrid(supabase, { roomId, visible, cellSize });
+      } catch {
+        if (stillCurrent()) {
+          applyRoomGrid(savedGridRef.current);
+          setActionError('Unable to save grid settings.');
+        }
+        return;
+      }
+      if (!stillCurrent()) return;
+      applyRoomGrid(saved);
+      try {
+        await emitGridUpdated(socket, roomId);
+      } catch {
+        if (stillCurrent()) setActionError('Grid saved, but could not sync to other players.');
+      }
+    } finally {
+      if (gridSaveRef.current === operation) {
+        gridSaveRef.current = null;
+        if (stillCurrent()) setGridSavingVisit(null);
+      }
+    }
+  }
 
   const refreshMembers = useCallback(async () => {
     try {
@@ -588,18 +664,21 @@ export default function GamePage() {
     return updated;
   };
 
-  const handleMapUploaded = (mapRecord) => {
+  const handleSelectActiveMap = async (mapRecord) => {
+    const visit = visitState.visitId;
+    const stillCurrent = () =>
+      isMountedRef.current && roomIdRef.current === roomId && roomVisitRef.current === visit;
+    if (!stillCurrent()) return;
     if (syncStateRef.current.inFlight) {
       syncStateRef.current.mapOverride = mapRecord;
     }
     setActiveMap(mapRecord);
-  };
-
-  const handleSelectActiveMap = (mapRecord) => {
-    if (syncStateRef.current.inFlight) {
-      syncStateRef.current.mapOverride = mapRecord;
+    setActionError(null);
+    try {
+      await emitMapUpdated(socket, roomId);
+    } catch {
+      if (stillCurrent()) setActionError('Map saved, but could not sync to other players.');
     }
-    setActiveMap(mapRecord);
   };
 
   const handleAddToken = async (name, color) => {
@@ -818,12 +897,13 @@ export default function GamePage() {
         supabase={supabase}
         roomId={roomId}
         activeMapId={activeMap?.id}
-        onMapUploaded={handleMapUploaded}
         onSelectActiveMap={handleSelectActiveMap}
         showGrid={showGrid}
-        onToggleGrid={() => setShowGrid((prev) => !prev)}
+        onToggleGrid={() => saveGrid(!showGrid, gridCellSize)}
         gridCellSize={gridCellSize}
         onChangeGridCellSize={setGridCellSize}
+        onCommitGridCellSize={(size) => saveGrid(showGrid, size)}
+        gridDisabled={loading || gridSaving || !isSocketReady}
         tokens={tokens}
         members={members}
         onAddToken={handleAddToken}

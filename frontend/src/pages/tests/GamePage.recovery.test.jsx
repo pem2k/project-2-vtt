@@ -46,6 +46,31 @@ describe('GamePage board snapshot and reconnect recovery', () => {
     }
   });
 
+  it('applies a player map broadcast and keeps it ahead of a stale reconnect snapshot', async () => {
+    harness.setupMockRoomSocket();
+    harness.mockAuthenticatedGame({ activeMap: { id: 'map-old', url: 'https://old.png' } });
+    vi.spyOn(tokensLib, 'getRoomTokens').mockResolvedValue([]);
+    await harness.render();
+    const snapshot = deferred();
+    mapsLib.getActiveMap.mockReturnValueOnce(snapshot.promise);
+    await act(async () => {
+      harness.triggerOnJoined();
+    });
+    await act(async () =>
+      harness.triggerSocket('mapUpdated', {
+        roomId: 'room-123',
+        map: { id: 'map-new', url: 'https://new.png' },
+      }),
+    );
+    await act(async () => {
+      snapshot.resolve({ id: 'map-old', url: 'https://old.png' });
+      await snapshot.promise;
+    });
+    expect(
+      harness.container.querySelector('[data-testid="board"]').getAttribute('data-map-url'),
+    ).toBe('https://new.png');
+  });
+
   it('preserves existing board state on reconnect recovery failure and clears error on retry success', async () => {
     harness.setupMockRoomSocket();
 

@@ -343,6 +343,51 @@ paths:
                 $ref: "#/components/schemas/RpcError"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /rest/v1/rpc/set_room_grid:
+    post:
+      tags: [Rooms]
+      summary: Save the room's shared grid settings
+      description: Only the room's DM may update these fields. Direct room updates remain blocked.
+      operationId: setRoomGrid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_room_id, p_grid_visible, p_grid_cell_size]
+              properties:
+                p_room_id:
+                  type: string
+                  format: uuid
+                p_grid_visible:
+                  type: boolean
+                p_grid_cell_size:
+                  type: integer
+                  minimum: 20
+                  maximum: 150
+                  multipleOf: 5
+      responses:
+        "200":
+          description: One row containing the saved settings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    grid_visible:
+                      type: boolean
+                    grid_cell_size:
+                      type: integer
+        "400":
+          description: Caller is not the room DM, or grid values violate the non-null or size constraints.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     anonKey:

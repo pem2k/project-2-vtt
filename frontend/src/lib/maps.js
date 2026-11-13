@@ -149,3 +149,17 @@ export async function setActiveMap(supabase, { roomId, mapId }) {
 
   return room;
 }
+
+export function emitMapUpdated(socket, roomId) {
+  return new Promise((resolve, reject) => {
+    if (!socket?.connected) {
+      reject(new Error('Map saved, but could not sync to other players.'));
+      return;
+    }
+    socket.timeout(5000).emit('mapUpdated', { roomId }, (error, response) => {
+      if (error || !response?.ok)
+        reject(new Error('Map saved, but could not sync to other players.'));
+      else resolve();
+    });
+  });
+}

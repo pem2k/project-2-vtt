@@ -61,6 +61,8 @@ A socket must join a room before any other event will work. Every event below ex
 | `tokenUpdated`     | `{ roomId, tokenId }`                       | DM                                         | `tokenUpdated` to everyone else in the room                      |
 | `moveToken`        | `{ roomId, tokenId }`                       | DM, or the player the token is assigned to | `tokenMoved` to everyone in the room, including the sender       |
 | `characterUpdated` | `{ roomId, characterId }`                   | DM, or the character's owner               | `characterUpdated` to everyone in the room, including the sender |
+| `gridUpdated` | `{ roomId }` | DM | Saved grid settings to everyone in the room, including the sender |
+| `mapUpdated` | `{ roomId }` | DM | Saved active map to everyone in the room, including the sender |
 
 #### `joinRoom`
 
@@ -147,6 +149,10 @@ The server reads the character and allows it if the caller is the room's DM or t
 | `tokenRemoved`     | `{ id }`, the id of the removed token           | Everyone in the room but the DM who sent it |
 | `tokenMoved`       | The full `tokens` row, with its new `x` and `y` | Everyone in the room                        |
 | `characterUpdated` | The full `characters` row                       | Everyone in the room                        |
+| `gridUpdated` | `{ id, grid_visible, grid_cell_size }` (`id` is the room id) | Everyone in the room |
+| `mapUpdated` | `{ roomId, map }` (`map` is the active map row, or `null`) | Everyone in the room |
+
+For `gridUpdated` and `mapUpdated`, the DM saves through `set_room_grid` or `set_active_map` first. The server checks DM membership and reads the saved settings before broadcasting; client-supplied grid or map values are ignored. Acknowledgements use `{ ok: true }` or `{ ok: false, error }`. Errors are `Invalid room.`, `Only the DM can broadcast room settings.`, or `Unable to broadcast room settings.`. Joining or reconnecting reloads these settings from the room. Uploading a map also saves it as active before notifying the room.
 
 #### `diceResult` payload
 
@@ -185,6 +191,7 @@ All of these are called with `supabase.rpc(name, args)` by a signed-in user. The
 | `move_token`       | `p_token_id uuid`, `p_x double precision`, `p_y double precision`           | The updated `tokens` row                  |
 | `update_character` | `p_character_id uuid`, `p_hp integer` (optional), `p_notes text` (optional) | The updated `characters` row              |
 | `set_active_map`   | `p_room_id uuid`, `p_map_id uuid`                                           | The updated `rooms` row                   |
+| `set_room_grid` | `p_room_id uuid`, `p_grid_visible boolean`, `p_grid_cell_size integer` | One row of `id`, `grid_visible`, `grid_cell_size` |
 
 ### `create_room(p_name, p_password)`
 
@@ -222,6 +229,10 @@ Sets which map the room shows. Only the room's DM may call it, and the map must 
 
 Errors: `authentication required`, `not allowed to set the active map`, `map does not belong to this room`.
 
+### `set_room_grid(p_room_id, p_grid_visible, p_grid_cell_size)`
+
+`set_room_grid` requires the room's DM. Visibility defaults to `true`; cell size defaults to `50` and must be a multiple of 5 between 20 and 150. Both fields are non-null. Unauthorized callers receive `only the room DM can update the grid`; invalid values fail database constraints. Direct room updates remain blocked.
+
 ### Helper functions
 
 `is_room_member(p_room_id uuid)` and `is_room_dm(p_room_id uuid)` return a boolean for the calling user. They back the RLS policies below and are executable by `authenticated` users.
@@ -232,7 +243,7 @@ Row-level security is on for every table. Only signed-in users have access, and 
 
 | Table          | Read                 | Insert                                                | Update                              | Delete                           |
 | -------------- | -------------------- | ----------------------------------------------------- | ----------------------------------- | -------------------------------- |
-| `rooms`        | Members              | `create_room` only                                    | `set_active_map` only               | The room's creator               |
+| `rooms`        | Members              | `create_room` only                                    | `set_active_map` / `set_room_grid` only | The room's creator               |
 | `room_members` | Members of that room | `create_room` and `join_room` only                    | None                                | The member themselves, or the DM |
 | `tokens`       | Members              | DM                                                    | DM (players use `move_token`)       | DM                               |
 | `characters`   | Members              | A member, for a card they own (`user_id` is their id) | DM (players use `update_character`) | DM, or the card's owner          |
