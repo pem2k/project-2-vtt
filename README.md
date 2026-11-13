@@ -4,6 +4,8 @@ oPeN VTT is a shared virtual tabletop for playing D&D online. It is for a dungeo
 
 **Live demo:** [https://open-vtt-demo-web.onrender.com/](https://open-vtt-demo-web.onrender.com/) — the free hosting plan sleeps when idle, so the first load can take about a minute.
 
+**Demo video:** [https://youtu.be/8sz0dawBGEE](https://youtu.be/8sz0dawBGEE)
+
 ## Features
 
 - Sign up, log in, and log out with Supabase Auth.

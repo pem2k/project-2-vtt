@@ -124,3 +124,5 @@
 [2026-11-12] [pem2k] [docs] Updated live demo link in README.md and added project reflection in Docs/reflections/parker-reflection.md.
 
 [2026-11-12] [pem2k] [#8] Implemented authoritative room grid persistence and live broadcast: added rooms columns grid_visible and grid_cell_size with set_room_grid RPC; implemented notify-then-verify gridUpdated and mapUpdated socket events via registerRoomSettingsEvents; updated GamePage with live grid state sync and reconnect recovery; verified via unit tests, ESLint, Prettier, and Vite build.
+
+[2026-11-12] [pem2k] [docs] Added demo video link to README.md.
