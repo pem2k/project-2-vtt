@@ -2,7 +2,7 @@
 
 oPeN VTT is a shared virtual tabletop for playing D&D online. It is for a dungeon master, who prepares the session, and for the players who join it. The dungeon master creates a password-protected room, uploads maps, and places named, colored tokens on a grid. Players join with the room name and password, move the tokens assigned to them, update character HP, and roll dice. Moves, character updates, and dice results are shared live, and room data is stored so it is still there when someone reconnects.
 
-**Live demo:** [https://open-vtt-demo-web.onrender.com](https://open-vtt-demo-web.onrender.com) — the free hosting plan sleeps when idle, so the first load can take about a minute.
+**Live demo:** [https://open-vtt-demo-web.onrender.com/](https://open-vtt-demo-web.onrender.com/) — the free hosting plan sleeps when idle, so the first load can take about a minute.
 
 ## Features
 

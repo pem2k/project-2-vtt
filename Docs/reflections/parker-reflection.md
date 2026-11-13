@@ -1,0 +1,9 @@
+This project taught me a lot, but it also exposed how easily I can overscope something when I’m excited about the idea. I underestimated the work involved in building a multiplayer virtual tabletop and overestimated my technical ability to put all the pieces together. Individual features sounded manageable, but connecting authentication, database permissions, sockets, and shared state was much harder than I expected. I spent a lot of time frustrated with myself for choosing something that stretched my understanding so far.
+
+I also found the tool limitations frustrating. Token limits interrupted work, especially when I needed help understanding or reviewing a larger change. Knowing that other tools were available through the school made those restrictions harder to understand. It also seemed like people relied on outside paid memberships to keep working, which made the experience feel somewhat inequitable. I don’t know everyone’s circumstances, but access to additional tools felt like it could make a meaningful difference.
+
+CI/CD was another area where I struggled. Without much prior instruction, I had trouble understanding how the pipeline, environments, tests, and deployment fit together. Handing that work to an agent helped us move forward, but it didn’t feel great when I couldn’t confidently explain every decision myself. That highlighted a gap between getting something working and actually understanding it.
+
+Working with Najib was great, as always. He was communicative and a huge help while I navigated an unexpected move that disrupted my ability to work. I appreciated having a teammate I could communicate honestly with during a stressful period.
+
+My biggest takeaway is that I need to scope around what I can understand and maintain, leave more time for integration, and use agents in smaller steps that I can verify and explain. I’m glad we built something ambitious, but I would approach the planning much more cautiously next time.
