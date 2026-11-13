@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import GamePage from '../pages/GamePage.jsx';
 import * as mapsLib from '../lib/maps.js';
 import * as roomsLib from '../lib/rooms.js';
+import * as gridLib from '../lib/roomGrid.js';
 import { supabase } from '../lib/supabaseClient.js';
 import * as useRoomSocketModule from '../hooks/useRoomSocket.js';
 import { deferred } from './deferred.js';
@@ -83,6 +84,11 @@ export function createGamePageHarness() {
       data: { user: { id: userId } },
       error: null,
     });
+    vi.spyOn(gridLib, 'getRoomGrid').mockImplementation(async (_sb, id) => ({
+      id,
+      grid_visible: true,
+      grid_cell_size: 50,
+    }));
 
     vi.spyOn(supabase, 'from').mockReturnValue({
       select: vi.fn().mockReturnThis(),
@@ -99,6 +105,7 @@ export function createGamePageHarness() {
     vi.spyOn(mapsLib, 'getActiveMap').mockImplementation((_sb, rid) => {
       return typeof activeMap === 'function' ? activeMap(rid) : Promise.resolve(activeMap);
     });
+    vi.spyOn(mapsLib, 'emitMapUpdated').mockResolvedValue();
   }
 
   async function render(initialPath = '/game/room-123', extraNode = null) {

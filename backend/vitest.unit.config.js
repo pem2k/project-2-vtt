@@ -15,6 +15,7 @@ export default defineConfig({
       'tests/roomSocket.test.js',
       'tests/tokenSocket.test.js',
       'tests/characterSocket.test.js',
+      'tests/roomSettingsSocket.test.js',
     ],
   },
 });

@@ -10,7 +10,7 @@ async function signUp(page, email) {
   await expect(page.getByRole('button', { name: 'Host', exact: true })).toBeVisible();
 }
 
-test('DM hosts, player joins, dice broadcast to both, and room survives refresh', async ({
+test('DM hosts, player joins, dice, maps and grid sync, and room survives refresh', async ({
   browser,
 }) => {
   const id = randomUUID();
@@ -46,7 +46,54 @@ test('DM hosts, player joins, dice broadcast to both, and room survives refresh'
       await player.locator('.chat-roll-row').innerText(),
     );
 
+    // Uploading and selecting maps reaches the player without refreshing.
+    await dm.getByRole('button', { name: 'Open Settings', exact: true }).click();
+    await dm.getByRole('tab', { name: 'Maps', exact: true }).click();
+    const images = await dm.evaluate(() =>
+      Object.fromEntries(
+        ['red', 'blue'].map((color) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 8;
+          const context = canvas.getContext('2d');
+          context.fillStyle = color;
+          context.fillRect(0, 0, 8, 8);
+          return [color, canvas.toDataURL('image/png').split(',')[1]];
+        }),
+      ),
+    );
+    const mapFile = {
+      name: 'grid-check.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(images.red, 'base64'),
+    };
+    const mapPixel = () =>
+      player
+        .locator('.konvajs-content canvas')
+        .first()
+        .evaluate((canvas) => Array.from(canvas.getContext('2d').getImageData(10, 10, 1, 1).data));
+    await dm.locator('#map-file-input').setInputFiles(mapFile);
+    await expect(dm.locator('.dm-map-active-badge')).toBeVisible();
+    await expect.poll(mapPixel).toEqual([255, 0, 0, 255]);
+    await dm.locator('#map-file-input').setInputFiles({
+      ...mapFile,
+      name: 'grid-second.png',
+      buffer: Buffer.from(images.blue, 'base64'),
+    });
+    await expect.poll(mapPixel).toEqual([0, 0, 255, 255]);
+    await dm
+      .getByRole('list', { name: 'Uploaded maps' })
+      .getByText('grid-check', { exact: true })
+      .click();
+    await expect.poll(mapPixel).toEqual([255, 0, 0, 255]);
+    const dmLayers = dm.locator('.konvajs-content canvas');
+    const playerLayers = player.locator('.konvajs-content canvas');
+    await expect(playerLayers).toHaveCount(3);
+    await dm.getByRole('button', { name: /Hide Grid/ }).click();
+    await expect(dmLayers).toHaveCount(2);
+    await expect(playerLayers).toHaveCount(2);
+
     await player.reload();
+    await expect(playerLayers).toHaveCount(2);
     await expect(player.getByRole('heading', { name: roomName, exact: true })).toBeVisible();
     await expect(player.getByRole('button', { name: 'Roll d20', exact: true })).toBeEnabled();
     await player.getByRole('button', { name: 'Roll d20', exact: true }).click();
@@ -55,8 +102,27 @@ test('DM hosts, player joins, dice broadcast to both, and room survives refresh'
     await expect(dm.locator('.chat-roll-row').last()).toHaveText(
       await player.locator('.chat-roll-row').innerText(),
     );
+    await dm.getByRole('button', { name: /Show Grid/ }).click();
+    await expect(dmLayers).toHaveCount(3);
+    await expect(playerLayers).toHaveCount(3);
+    const slider = dm.getByRole('slider', { name: 'Grid cell size in pixels' });
+    await expect(slider).toBeEnabled();
+    await slider.press('ArrowRight');
+    await expect(slider).toHaveValue('55');
+    await expect(dm.getByRole('button', { name: /Hide Grid/ })).toBeEnabled();
+    const track = await slider.boundingBox();
+    await dm.mouse.move(track.x + track.width / 2, track.y + track.height / 2);
+    await dm.mouse.down();
+    await dm.mouse.move(track.x + track.width * 0.7, track.y + track.height / 2, { steps: 5 });
+    await dm.mouse.up();
+    const draggedSize = await slider.inputValue();
+    expect(Number(draggedSize)).toBeGreaterThan(55);
+    await expect(dm.getByRole('button', { name: /Hide Grid/ })).toBeEnabled();
+    await dm.reload();
+    await dm.getByRole('button', { name: 'Open Settings', exact: true }).click();
+    await dm.getByRole('tab', { name: 'Maps', exact: true }).click();
+    await expect(slider).toHaveValue(draggedSize);
   } finally {
-    await dmContext.close();
-    await playerContext.close();
+    await Promise.allSettled([dmContext.close(), playerContext.close()]);
   }
 });

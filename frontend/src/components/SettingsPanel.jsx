@@ -38,12 +38,13 @@ export default function SettingsPanel({
   supabase,
   roomId,
   activeMapId,
-  onMapUploaded,
   onSelectActiveMap,
   showGrid = true,
   onToggleGrid,
   gridCellSize = 50,
   onChangeGridCellSize,
+  onCommitGridCellSize,
+  gridDisabled = false,
   tokens = [],
   members = [],
   onAddToken,
@@ -246,12 +247,13 @@ export default function SettingsPanel({
               supabase={supabase}
               roomId={roomId}
               activeMapId={activeMapId}
-              onMapUploaded={onMapUploaded}
               onSelectActiveMap={onSelectActiveMap}
               showGrid={showGrid}
               onToggleGrid={onToggleGrid}
               gridCellSize={gridCellSize}
               onChangeGridCellSize={onChangeGridCellSize}
+              onCommitGridCellSize={onCommitGridCellSize}
+              gridDisabled={gridDisabled}
               isVisible={isOpen && activeTab === 'maps'}
               hidden={activeTab !== 'maps'}
             />

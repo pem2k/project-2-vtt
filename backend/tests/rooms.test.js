@@ -6,6 +6,37 @@ import { anonClient, signIn, USERS, TEST_ROOM } from './helpers/db.js';
 const uniqueRoomName = (base) => `${base} ${randomUUID()}`;
 
 describe('rooms RLS + room RPCs', () => {
+  it('persists DM grid settings and rejects player, outsider and anonymous writes', async () => {
+    const dm = await signIn(USERS.dm);
+    const { data: roomId, error } = await dm.rpc('create_room', {
+      p_name: uniqueRoomName('Grid room'),
+      p_password: 'gridpass',
+    });
+    expect(error).toBeNull();
+    const input = { p_room_id: roomId, p_grid_visible: false, p_grid_cell_size: 75 };
+    const saved = await dm.rpc('set_room_grid', input);
+    expect(saved.error).toBeNull();
+    const player = await signIn(USERS.player1);
+    const outsider = await signIn(USERS.player2);
+    const { data: room } = await dm.from('rooms').select('name').eq('id', roomId).single();
+    expect(
+      (await player.rpc('join_room', { p_name: room.name, p_password: 'gridpass' })).error,
+    ).toBeNull();
+    for (const client of [player, outsider, anonClient()]) {
+      expect(
+        (await client.rpc('set_room_grid', { ...input, p_grid_visible: true })).error,
+      ).not.toBeNull();
+    }
+    const read = await player
+      .from('rooms')
+      .select('grid_visible, grid_cell_size')
+      .eq('id', roomId)
+      .single();
+    expect(read.error).toBeNull();
+    expect(read.data).toEqual({ grid_visible: false, grid_cell_size: 75 });
+    expect((await dm.rpc('set_room_grid', { ...input, p_grid_cell_size: 0 })).error).not.toBeNull();
+  });
+
   it('anon cannot read rooms', async () => {
     const { data } = await anonClient().from('rooms').select('*');
     expect(data ?? []).toHaveLength(0);

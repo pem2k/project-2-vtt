@@ -9,12 +9,13 @@ export default function MapsTab({
   supabase,
   roomId,
   activeMapId,
-  onMapUploaded,
   onSelectActiveMap,
   showGrid = true,
   onToggleGrid,
   gridCellSize = 50,
   onChangeGridCellSize,
+  onCommitGridCellSize,
+  gridDisabled = false,
   initialMaps = [],
   isVisible = true,
   hidden = false,
@@ -79,9 +80,7 @@ export default function MapsTab({
         fileInputRef.current.value = '';
       }
       setMapsList((prev) => [mapRecord, ...prev]);
-      if (onMapUploaded) {
-        onMapUploaded(mapRecord);
-      }
+      await handleSelectMap(mapRecord);
     } catch (err) {
       setError(err.message || 'Failed to upload map.');
     } finally {
@@ -111,13 +110,14 @@ export default function MapsTab({
   };
 
   const handleSelectMap = async (map) => {
+    setError(null);
     try {
       await setActiveMap(supabase, { roomId, mapId: map.id });
       if (onSelectActiveMap) {
-        onSelectActiveMap(map);
+        await onSelectActiveMap(map);
       }
-    } catch (err) {
-      console.error('Failed to set active map:', err);
+    } catch {
+      setError('Unable to activate map.');
     }
   };
 
@@ -169,6 +169,7 @@ export default function MapsTab({
         type="button"
         className={`dm-grid-toggle-btn ${showGrid ? 'active' : ''}`}
         onClick={onToggleGrid}
+        disabled={gridDisabled}
         aria-pressed={showGrid}
       >
         <span className="dm-grid-toggle-icon">⊞</span>
@@ -193,7 +194,12 @@ export default function MapsTab({
               onChangeGridCellSize(Number(e.target.value));
             }
           }}
-          disabled={!showGrid}
+          onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+          onPointerUp={(event) => onCommitGridCellSize?.(Number(event.currentTarget.value))}
+          onPointerCancel={(event) => onCommitGridCellSize?.(Number(event.currentTarget.value))}
+          onKeyUp={(event) => onCommitGridCellSize?.(Number(event.currentTarget.value))}
+          onBlur={(event) => onCommitGridCellSize?.(Number(event.currentTarget.value))}
+          disabled={!showGrid || gridDisabled}
           className="dm-grid-slider"
           aria-label="Grid cell size in pixels"
         />
